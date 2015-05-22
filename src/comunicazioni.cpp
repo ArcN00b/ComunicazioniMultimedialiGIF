@@ -168,13 +168,14 @@ int LetturaFilePPM(char nomeFile[]){
 		}
 
 	}
+	fclose(fin);
 	return 0;
 }
 
 //Funzione che stampa a video i pixel in modo ordinato
-void stampaPixel(){
+void stampaPixel() {
 
-	//Indici utilizzati per effettuare l'accesso a ogni componente della struttura
+	//Indice utilizzato per effettuare l'accesso a ogni componente della struttura
 	int i;
 
 	//Scorro tutta la struttura dati
@@ -189,6 +190,28 @@ void stampaPixel(){
 	}
 
 	scanf("%d",&i);
+}
+
+//Funzione che scrive i pixel all'interno del file
+void scriviPixel() {
+
+	//Variabili locali utili
+	int i;
+	FILE *fout = fopen("DatiPixel.txt", "w");
+	/*if(fout == NULL) {
+		fclose(fout);
+	} else {
+		printf("file aperto correttamente\n");
+	}*/
+
+	//Scorro tutta la struttura dati
+	for(i = 0; i < larghezza * altezza; i++) {
+
+		//Scrivo all'interno del file
+		fprintf(fout, "R %d:G %d:B %d\n", pixel[i].R, pixel[i].G, pixel[i].B);
+	}
+
+	fclose(fout);
 }
 
 int main(){
@@ -217,7 +240,7 @@ int main(){
 	}
 
 	//Stampo la struttura dati preparata in precedenza
-	stampaPixel();
+	scriviPixel();
 
 	//Libero le strutture precedentemente utilizzate
 	free(nomeFile);
