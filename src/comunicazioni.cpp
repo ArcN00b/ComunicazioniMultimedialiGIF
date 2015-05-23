@@ -26,15 +26,15 @@ typedef struct colorVet{
 	int R;
 	int G;
 	int B;
-	int occorrenze;
+	int occorrenza;
 }colorVet;
 
 //Dichiaro le variabili globali utilizzate in futuro
 pixelInfo *pixel;
 colorVet *colori;
-int larghezza, altezza;
+int larghezza, altezza, grandezzaColori;
 
-int LetturaFileXPM(char nomeFile[]){
+int LetturaFileXPM(char nomeFile[]) {
 
 	FILE *fin;
 	char line[256],*str;
@@ -118,12 +118,12 @@ int LetturaFileXPM(char nomeFile[]){
 	return 0;
 }
 
-int LetturaFilePPM(char nomeFile[]){
+int LetturaFilePPM(char nomeFile[]) {
 
 	//Dichiaro alcune variabili utili per la lettura da file
 	FILE *fin;
 	char line[256];
-	int cline = 0, numColori, cpixel = 0;
+	int cline = 0, cpixel = 0;
 	std::string::size_type sz = 0;
 
 	//Apro il file per la lettura controllando che non ci siano problemi
@@ -135,26 +135,15 @@ int LetturaFilePPM(char nomeFile[]){
 		printf("file aperto correttamente\n");
 	}
 
-	//leggo dal file fino a quando non viene letto completamente
+	//leggo completamente il file
 	while (!(feof(fin))){
 
 		//leggo una linea dal file
 		fscanf(fin, " %[^\n]", line);
 		cline++;
 
-		//Nella terza riga del file ricavo larghezza e altezza immagine
-		if (cline == 3) {
-			larghezza = atoi(strtok(line," "));
-			altezza = atoi(strtok(NULL,"\0"));
-			pixel = (pixelInfo*) malloc (larghezza * altezza * sizeof(pixelInfo));
-
-		//Nella quarta riga del file ricavo il numero dei colori
-		} else if (cline == 4) {
-			numColori = atoi(line);
-			colori = (colorVet*) malloc (numColori * sizeof(colorVet));
-
 		//Leggo le infomazioni di ogni pixel
-		} else if (cline > 4) {
+		if (cline > 4) {
 
 			//Inserisco le informazioni nella struttura pixel
 			if (cline % 3 == 2)
@@ -165,10 +154,83 @@ int LetturaFilePPM(char nomeFile[]){
 				pixel[cpixel].B = atoi(line);
 				cpixel++;
 			}
-		}
 
+		//Nella terza riga del file ricavo larghezza e altezza immagine
+		} else if (cline == 3) {
+			larghezza = atoi(strtok(line," "));
+			altezza = atoi(strtok(NULL,"\0"));
+
+			//Alloco la struttura dati che contiene tutti i dati dei pixel
+			pixel = (pixelInfo*) malloc (larghezza * altezza * sizeof(pixelInfo));
+
+		//Nella quarta riga del file ricavo il numero dei colori
+		} else if (cline == 4) {
+			grandezzaColori = larghezza * altezza;
+
+			//Alloco la struttura dati contenente la lista di colori dell'immagine originale
+			colori = (colorVet*) malloc (grandezzaColori * sizeof(colorVet));
+		}
 	}
 	fclose(fin);
+	return 0;
+}
+
+//Funzione che cerca la posizione adatta per un colore che cambia occorrenza
+int aggiornaPosizione(int posAttuale) {
+
+	//Dichiaro una variabile per gestire la ricerca
+	int i, temp;
+
+	//Controllo se è necessario cercare la posizione nuova
+	if(colori[posAttuale].occorrenza == colori[0].occorrenza) {
+		return posAttuale;
+
+	//Se la posizione attuale non va bene
+	} else {
+
+		//Scorro il vettore verso l'alto rispetto la posizione attuale
+		i = posAttuale - 1;
+		while(i >= 0 && colori[i].occorrenza < colori[posAttuale].occorrenza)
+			i--;
+
+		//Dopo aver trovato la nuova posizione effettuo uno scambio
+		temp = colori[i + 1].occorrenza;
+		colori[i + 1].occorrenza = colori[posAttuale].occorrenza;
+		colori[posAttuale].occorrenza = temp;
+		}
+
+	return -1;
+}
+
+//Funzione che trova la posizione di un colore all'interno della lista colori
+int trovaPosizione(int R, int G, int B) {
+
+	//Dichiaro una variabile utile a gestire la ricerca
+	int i;
+
+	//Scorro la lista dei colori per trovare se il colore è già presente o meno
+	for(i = 0; i < grandezzaColori; i++) {
+
+		//Controllo la presenza o meno di un colore nella posizione attuale
+		if(colori[i].occorrenza != 0) {
+			if(R == colori[i].R && G == colori[i].G && B == colori[i].B) {
+
+				//Aggiorno la lista dei colori
+				colori[i].occorrenza++;
+				return i;
+			}
+
+		//In caso contrario aggiungo il colore nella lista dei colori
+		} else {
+			colori[i].R = R;
+			colori[i].G = G;
+			colori[i].B = B;
+			colori[i].occorrenza++;
+			printf("%d-", i);
+			return i;
+		}
+	}
+
 	return 0;
 }
 
@@ -188,32 +250,47 @@ void stampaPixel() {
 		if(i % larghezza == larghezza -1)
 			printf("\n");
 	}
-
-	scanf("%d",&i);
 }
 
 //Funzione che scrive i pixel all'interno del file
-void scriviPixel() {
+void scriviColori() {
 
 	//Variabili locali utili
-	int i;
-	FILE *fout = fopen("DatiPixel.txt", "w");
-	/*if(fout == NULL) {
+	int i = 0;
+	FILE *fout = fopen("ListaColori.txt", "w");
+	if(fout == NULL) {
 		fclose(fout);
 	} else {
 		printf("file aperto correttamente\n");
-	}*/
+	}
 
 	//Scorro tutta la struttura dati
-	for(i = 0; i < larghezza * altezza; i++) {
+	while(i < grandezzaColori && colori[i].occorrenza != 0) {
 
 		//Scrivo all'interno del file
-		fprintf(fout, "R %d:G %d:B %d\n", pixel[i].R, pixel[i].G, pixel[i].B);
+		fprintf(fout, "R %d:G %d:B %d:O %d\n", colori[i].R, colori[i].G, colori[i].B, colori[i].occorrenza);
+		i++;
 	}
 
 	fclose(fout);
 }
 
+//Funzione che compila la lista di colori dai valori dei pixel PPM
+void compilaListaColori() {
+
+	//Indice utilizzato per effettuare l'accesso a ogni componente delle strutture
+	int i, posAttuale;
+
+	//Inizializzo la struttura per l'inserimento ordinato
+	for(i = 0; i < grandezzaColori; i++)
+		colori[i].occorrenza = 0;
+
+	//Scorro tutta la struttura che contiene i dati dei pixel per ricavare i colori
+	for(i = 0; i < larghezza * altezza; i++) {
+		posAttuale = trovaPosizione(pixel[i].R,pixel[i].G,pixel[i].B);
+		aggiornaPosizione(posAttuale);
+	}
+}
 int main(){
 
 	int res, i,k=2;
@@ -235,13 +312,17 @@ int main(){
 		res = LetturaFileXPM(nomeFile);
 	} else if(strcmp(ext,"ppm")==0) {
 		res = LetturaFilePPM(nomeFile);
+
+		//Compilo la struttura che contiene la lista dei colori
+		compilaListaColori();
+
+		//Scrivo la lista dei colori nel file
+		scriviColori();
 	} else {
 		printf("errore\n");
 	}
 
-	//Stampo la struttura dati preparata in precedenza
-	scriviPixel();
-
+	scanf("%d",&i);
 	//Libero le strutture precedentemente utilizzate
 	free(nomeFile);
 	free(colori);
