@@ -26,13 +26,13 @@ typedef struct colorVet{
 	int R;
 	int G;
 	int B;
-	int occorrenza;
+	int occorrenza = 0;
 }colorVet;
 
 //Dichiaro le variabili globali utilizzate in futuro
 pixelInfo *pixel;
 colorVet *colori;
-int larghezza, altezza, grandezzaColori;
+int larghezza, altezza, numColori;
 
 int LetturaFileXPM(char nomeFile[]) {
 
@@ -165,90 +165,53 @@ int LetturaFilePPM(char nomeFile[]) {
 
 		//Nella quarta riga del file ricavo il numero dei colori
 		} else if (cline == 4) {
-			grandezzaColori = larghezza * altezza;
+			numColori = larghezza * altezza;
 
 			//Alloco la struttura dati contenente la lista di colori dell'immagine originale
-			colori = (colorVet*) malloc (grandezzaColori * sizeof(colorVet));
+			colori = (colorVet*) malloc (numColori * sizeof(colorVet));
 		}
 	}
 	fclose(fin);
 	return 0;
 }
 
-//Funzione che cerca la posizione adatta per un colore che cambia occorrenza
-int aggiornaPosizione(int posAttuale) {
-
-	//Dichiaro una variabile per gestire la ricerca
-	int i, temp;
-
-	//Controllo se è necessario cercare la posizione nuova
-	if(colori[posAttuale].occorrenza == colori[0].occorrenza) {
-		return posAttuale;
-
-	//Se la posizione attuale non va bene
-	} else {
-
-		//Scorro il vettore verso l'alto rispetto la posizione attuale
-		i = posAttuale - 1;
-		while(i >= 0 && colori[i].occorrenza < colori[posAttuale].occorrenza)
-			i--;
-
-		//Dopo aver trovato la nuova posizione effettuo uno scambio
-		temp = colori[i + 1].occorrenza;
-		colori[i + 1].occorrenza = colori[posAttuale].occorrenza;
-		colori[posAttuale].occorrenza = temp;
-		}
-
-	return -1;
-}
-
 //Funzione che trova la posizione di un colore all'interno della lista colori
-int trovaPosizione(int R, int G, int B) {
+void compilaVettoreColori() {
 
-	//Dichiaro una variabile utile a gestire la ricerca
-	int i;
+	//Indici di ricerca
+	int i, j, pos;
+	colorVet temp;
 
-	//Scorro la lista dei colori per trovare se il colore è già presente o meno
-	for(i = 0; i < grandezzaColori; i++) {
+	//Scorro tutti i pixel presenti nell'immagine
+	for(pos = 0; pos < larghezza * altezza; pos++) {
 
-		//Controllo la presenza o meno di un colore nella posizione attuale
+		//Scorro la lista dei colori per trovare se il colore è già presente o meno
+		i = 0;
+		while(i < numColori && colori[i].occorrenza != 0 && !(pixel[pos].R == colori[i].R &&
+				pixel[pos].G == colori[i].G && pixel[pos].B == colori[i].B))
+			i++;
+
+		//Se ho trovato una corrispondenza aggiorno l'occorrenza
 		if(colori[i].occorrenza != 0) {
-			if(R == colori[i].R && G == colori[i].G && B == colori[i].B) {
 
-				//Aggiorno la lista dei colori
-				colori[i].occorrenza++;
-				return i;
-			}
-
-		//In caso contrario aggiungo il colore nella lista dei colori
-		} else {
-			colori[i].R = R;
-			colori[i].G = G;
-			colori[i].B = B;
+			//Aggiorno la lista dei colori
 			colori[i].occorrenza++;
-			printf("%d-", i);
-			return i;
+
+			//Trovo la posizione in cui spostare il colore appena aggiornato
+			j = i - 1;
+			while(j >= 0 && colori[j].occorrenza < colori[i].occorrenza)
+				j--;
+
+			//Effettuo lo scambio di posizione
+				temp = colori[j + 1];
+				colori[j + 1] = colori[i];
+				colori[i] = temp;
+		} else {
+			colori[i].R = pixel[pos].R;
+			colori[i].G = pixel[pos].G;
+			colori[i].B = pixel[pos].B;
+			colori[i].occorrenza++;
 		}
-	}
-
-	return 0;
-}
-
-//Funzione che stampa a video i pixel in modo ordinato
-void stampaPixel() {
-
-	//Indice utilizzato per effettuare l'accesso a ogni componente della struttura
-	int i;
-
-	//Scorro tutta la struttura dati
-	for(i = 0; i < larghezza * altezza; i++) {
-
-		//Stampo ogni pixel
-		printf("%d %d %d-", pixel[i].R, pixel[i].G, pixel[i].B);
-
-		//Stampo la riga successiva
-		if(i % larghezza == larghezza -1)
-			printf("\n");
 	}
 }
 
@@ -265,7 +228,7 @@ void scriviColori() {
 	}
 
 	//Scorro tutta la struttura dati
-	while(i < grandezzaColori && colori[i].occorrenza != 0) {
+	while(i < numColori && colori[i].occorrenza != 0) {
 
 		//Scrivo all'interno del file
 		fprintf(fout, "R %d:G %d:B %d:O %d\n", colori[i].R, colori[i].G, colori[i].B, colori[i].occorrenza);
@@ -275,22 +238,6 @@ void scriviColori() {
 	fclose(fout);
 }
 
-//Funzione che compila la lista di colori dai valori dei pixel PPM
-void compilaListaColori() {
-
-	//Indice utilizzato per effettuare l'accesso a ogni componente delle strutture
-	int i, posAttuale;
-
-	//Inizializzo la struttura per l'inserimento ordinato
-	for(i = 0; i < grandezzaColori; i++)
-		colori[i].occorrenza = 0;
-
-	//Scorro tutta la struttura che contiene i dati dei pixel per ricavare i colori
-	for(i = 0; i < larghezza * altezza; i++) {
-		posAttuale = trovaPosizione(pixel[i].R,pixel[i].G,pixel[i].B);
-		aggiornaPosizione(posAttuale);
-	}
-}
 int main(){
 
 	int res, i,k=2;
@@ -311,10 +258,12 @@ int main(){
 	if(strcmp(ext,"xpm")==0) {
 		res = LetturaFileXPM(nomeFile);
 	} else if(strcmp(ext,"ppm")==0) {
+
+		//Eseguo la lettura da file .ppm
 		res = LetturaFilePPM(nomeFile);
 
 		//Compilo la struttura che contiene la lista dei colori
-		compilaListaColori();
+		compilaVettoreColori();
 
 		//Scrivo la lista dei colori nel file
 		scriviColori();
