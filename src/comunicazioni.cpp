@@ -22,32 +22,35 @@ typedef struct pixelInfo{
 
 //Struttura in cui vengono inseriti i colori trovati
 typedef struct colorVet{
-	char simbolo[3];
+	char simbolo;
 	int R;
 	int G;
 	int B;
-	int occorrenza = 0;
+	int occorrenza;
 }colorVet;
+
+typedef struct simboli{
+	char simbolo;
+}simboli;
 
 //Dichiaro le variabili globali utilizzate in futuro
 pixelInfo *pixel;
-colorVet *colori;
+colorVet *colori, *palette;
+simboli *pixelGif;
 int larghezza, altezza, numColori;
 
-int LetturaFileXPM(char nomeFile[]) {
+/*int LetturaFileXPM(char nomeFile[]) {
 
 	FILE *fin;
 	char line[256],*str;
 	unsigned int cline=0,numColori,bitColore,i,c=0;
 	std::string::size_type sz = 0;
 
+	//Apro il file per la lettura controllando che non ci siano problemi
 	fin = fopen(nomeFile,"r+");
-	if(fin == NULL){
+	if(fin == NULL) {
 		fclose(fin);
 		return -1;
-	}
-	else{
-		printf("file aperto correttamente\n");
 	}
 
 	while(!(feof(fin))){
@@ -108,15 +111,16 @@ int LetturaFileXPM(char nomeFile[]) {
 
 		}
 
-		//questa è solo una prova
+		//questa Ã¨ solo una prova
 		if(cline > 260){
 			getch();
 		}
 	}
 
+	//Chiudo il file e ritorno un valore di default
 	fclose(fin);
 	return 0;
-}
+}*/
 
 int LetturaFilePPM(char nomeFile[]) {
 
@@ -131,8 +135,6 @@ int LetturaFilePPM(char nomeFile[]) {
 	if(fin == NULL) {
 		fclose(fin);
 		return -1;
-	} else {
-		printf("file aperto correttamente\n");
 	}
 
 	//leggo completamente il file
@@ -171,6 +173,74 @@ int LetturaFilePPM(char nomeFile[]) {
 			colori = (colorVet*) malloc (numColori * sizeof(colorVet));
 		}
 	}
+
+	//Chiudo il file e ritorno un valore di default
+	fclose(fin);
+	return 0;
+}
+
+int LetturaFileGIF(char nomeFile[]) {
+
+	//Dichiaro alcune variabili utili per la lettura da file
+	FILE *fin;
+	char line[256], *temp;
+	int cline = 0, cpixel = 0, ccolori = 0, i;
+	numColori = 256; // temporaneo
+	std::string::size_type sz = 0;
+
+	//Apro il file per la lettura controllando che non ci siano problemi
+	fin = fopen(nomeFile,"r+");
+	if(fin == NULL) {
+		fclose(fin);
+		return -1;
+	}
+
+	//leggo completamente il file
+	while (!(feof(fin))){
+
+		//leggo una linea dal file
+		fscanf(fin, " %[^\n]", line);
+		cline++;
+
+		//Leggo le informazioni di ogni pixel
+		if(cline > numColori + 1) {
+			pixelGif[cpixel].simbolo = line[0];
+			cpixel++;
+
+		//Leggo le informazioni delle palette
+		} else if(cline > 1 && cline <= numColori + 1){
+			printf("%s\n", line);
+			temp = strtok(line, " ");
+			if(temp != NULL)
+				palette[ccolori].simbolo = temp[0];
+			else
+				palette[ccolori].simbolo = NULL;
+			palette[ccolori].R = atoi(strtok(NULL, " "));
+			palette[ccolori].G = atoi(strtok(NULL, " "));
+			palette[ccolori].B = atoi(strtok(NULL, "\0"));
+			ccolori++;
+
+		//Ricavo le informazioni sull'immagine
+		} else {
+			larghezza = atoi(strtok(line, " "));
+			altezza = atoi(strtok(NULL, " "));
+			numColori = atoi(strtok(NULL, "\0"));
+			palette = (colorVet*) malloc(numColori * sizeof(colorVet));
+			pixelGif = (simboli*) malloc(larghezza * altezza * sizeof(simboli));
+		}
+	}
+
+	//Alloco la struttura dati che contiene tutti i dati dei pixel
+	pixel = (pixelInfo*) malloc (larghezza * altezza * sizeof(pixelInfo));
+
+	//Associo ad ogni pixel il valore ricavato dalla palette
+	for(i = 0; i < larghezza * altezza; i++) {
+		pixel[i].R = palette[(int) pixelGif[i].simbolo].R;
+		pixel[i].G = palette[(int) pixelGif[i].simbolo].G;
+		pixel[i].B = palette[(int) pixelGif[i].simbolo].B;
+	}
+
+	//Chiudo il file e ritorno un valore di default
 	fclose(fin);
 	return 0;
 }
@@ -182,10 +252,14 @@ void compilaVettoreColori() {
 	int i, j, pos;
 	colorVet temp;
 
+	//Azzero le occorrenze del vettore dei colori
+	for(i = 0; i < numColori; i++)
+		colori[i].occorrenza = 0;
+
 	//Scorro tutti i pixel presenti nell'immagine
 	for(pos = 0; pos < larghezza * altezza; pos++) {
 
-		//Scorro la lista dei colori per trovare se il colore è già presente o meno
+		//Scorro la lista dei colori per trovare se il colore Ã¨ giÃ  presente o meno
 		i = 0;
 		while(i < numColori && colori[i].occorrenza != 0 && !(pixel[pos].R == colori[i].R &&
 				pixel[pos].G == colori[i].G && pixel[pos].B == colori[i].B))
@@ -206,6 +280,8 @@ void compilaVettoreColori() {
 				temp = colori[j + 1];
 				colori[j + 1] = colori[i];
 				colori[i] = temp;
+
+		//Inserisco il colore in una nuova posizione
 		} else {
 			colori[i].R = pixel[pos].R;
 			colori[i].G = pixel[pos].G;
@@ -215,16 +291,53 @@ void compilaVettoreColori() {
 	}
 }
 
+//Funzione che crea le palette e trova il nuovo colore dei pixel
+void creaDatiGif(int grandezza) {
+
+	//Dichiaro alcune variabili locali
+	int i, j, min, somma;
+
+	//Inizializzo le strutture dati
+	numColori = grandezza;
+	palette = (colorVet*) malloc(numColori * sizeof(colorVet));
+	pixelGif = (simboli*) malloc(larghezza * altezza * sizeof(simboli));
+
+	//Prendo i primi grandezza colori dal vettore colori
+	for(i = 0; i < numColori; i++) {
+		palette[i] = colori[i];
+		palette[i].simbolo = (char) i;
+	}
+
+	//Trovo il nuovo colore dei pixel
+	for(i = 0; i < larghezza * altezza; i++) {
+
+		//Imposto la ricerca del minimo
+		min = 160000000;
+
+		//Scansiono tutta la palette
+		for(j = 0; j < numColori; j++) {
+
+			//Cerco la distanza minima tra il colore originale e quelli nella palette
+			somma = abs(pixel[i].R - palette[j].R) + abs(pixel[i].G - palette[j].G) + abs(pixel[i].B - palette[j].B);
+			if(somma < min) {
+				min = somma;
+				pixelGif[i].simbolo = palette[j].simbolo;
+			}
+		}
+	}
+}
+
 //Funzione che scrive i pixel all'interno del file
-void scriviColori() {
+int scriviColori() {
 
 	//Variabili locali utili
 	int i = 0;
+
+	//Apro il file per scrivere i colori
 	FILE *fout = fopen("ListaColori.txt", "w");
 	if(fout == NULL) {
 		fclose(fout);
-	} else {
-		printf("file aperto correttamente\n");
+		return -1;
 	}
 
 	//Scorro tutta la struttura dati
@@ -235,7 +348,71 @@ void scriviColori() {
 		i++;
 	}
 
+	//Chiudo il file e ritorno un valore di default
 	fclose(fout);
+	return 0;
+}
+
+int scriviPPM(char nomeFile[]) {
+
+	//Dichiaro alcune variabili locali utili
+	int i;
+
+	//Cambio estensione al nome del file
+	nomeFile[strlen(nomeFile) - 3] = 'p';
+	nomeFile[strlen(nomeFile) - 2] = 'p';
+	nomeFile[strlen(nomeFile) - 1] = 'm';
+
+	//Apro il file per scrivere i colori
+	FILE *fout = fopen(nomeFile, "w");
+	if(fout == NULL) {
+		fclose(fout);
+		return -1;
+	}
+
+	//Scrivo larghezza, altezza e numero colori
+	fprintf(fout, "P3\n#CREATOR CAMPI ARMARI\n%d %d\n255\n", larghezza, altezza);
+
+	//Scrivo il contenuto dei pixel
+	for(i = 0; i < larghezza * altezza; i++)
+		fprintf(fout, "%d\n%d\n%d\n", pixel[i].R, pixel[i].G, pixel[i].B);
+
+	//Chiudo il file e ritorno un valore di default
+	fclose(fout);
+	return 0;
+}
+
+int scriviGIF(char nomeFile[]) {
+
+	//Dichiaro alcune variabili locali utili
+	int i;
+
+	//Cambio estensione al nome del file
+	nomeFile[strlen(nomeFile) - 3] = 'g';
+	nomeFile[strlen(nomeFile) - 2] = 'i';
+	nomeFile[strlen(nomeFile) - 1] = 'f';
+
+	//Apro il file per scrivere i colori
+	FILE *fout = fopen(nomeFile, "w");
+	if(fout == NULL) {
+		fclose(fout);
+		return -1;
+	}
+
+	//Scrivo larghezza, altezza e numero colori
+	fprintf(fout, "%d %d %d\n", larghezza, altezza, numColori);
+
+	//Scrivo tutta la palette
+	for(i = 0; i < numColori; i++)
+		fprintf(fout, "%c %d %d %d\n", palette[i].simbolo, palette[i].R, palette[i].G, palette[i].B);
+
+	//Scrivo il contenuto dei pixel
+	for(i = 0; i < larghezza * altezza; i++)
+		fprintf(fout, "%c\n", pixelGif[i].simbolo);
+
+	//Chiudo il file e ritorno un valore di default
+	fclose(fout);
+	return 0;
 }
 
 int main(){
@@ -255,18 +432,43 @@ int main(){
 	}
 
 	//Controllo l'estensione per decidere quale funzione utilizzare
-	if(strcmp(ext,"xpm")==0) {
-		res = LetturaFileXPM(nomeFile);
-	} else if(strcmp(ext,"ppm")==0) {
+	if(strcmp(ext,"xpm") == 0) {
+		//res = LetturaFileXPM(nomeFile);
+	} else if(strcmp(ext,"ppm") == 0) {
 
 		//Eseguo la lettura da file .ppm
-		res = LetturaFilePPM(nomeFile);
+		/*if(LetturaFilePPM(nomeFile) == 0)
+			printf("Lettura immagine completata\n");
 
 		//Compilo la struttura che contiene la lista dei colori
 		compilaVettoreColori();
 
 		//Scrivo la lista dei colori nel file
-		scriviColori();
+		if(scriviColori() == 0)
+			printf("Scrittura colori completata\n");
+
+		//Creo la palette globale
+		creaDatiGif(256);
+
+		//Scrivo l'immagine gif
+		if(scriviGIF(nomeFile) == 0)
+			printf("Scrittura gif avvenuta con successo\n");
+
+		//Libero le strutture dati
+		free(nomeFile);
+		free(colori);
+		free(palette);
+		free(pixel);
+		free(pixelGif);*/
+
+		//Leggo l'immagine gif
+		strcpy(nomeFile,"assassins_creed_syndicate-1280x800.gif");
+		LetturaFileGIF(nomeFile);
+
+		//Scrivo il file.ppm
+		strcpy(nomeFile,"assassins_creed_syndicate-1280x800_prova.gif");
+		scriviPPM(nomeFile);
+
 	} else {
 		printf("errore\n");
 	}
@@ -275,5 +477,8 @@ int main(){
 	//Libero le strutture precedentemente utilizzate
 	free(nomeFile);
 	free(colori);
+	free(palette);
+	free(pixel);
+	free(pixelGif);
 	return 0;
 }
