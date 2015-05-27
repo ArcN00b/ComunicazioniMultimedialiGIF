@@ -211,10 +211,10 @@ int LetturaFileGIF(char nomeFile[]) {
 		} else if(cline > 1 && cline <= numColori + 1){
 			printf("%s\n", line);
 			temp = strtok(line, " ");
-			if(temp != NULL)
+			/*if(temp != NULL)
 				palette[ccolori].simbolo = temp[0];
 			else
-				palette[ccolori].simbolo = NULL;
+				palette[ccolori].simbolo = NULL;*/
 			palette[ccolori].R = atoi(strtok(NULL, " "));
 			palette[ccolori].G = atoi(strtok(NULL, " "));
 			palette[ccolori].B = atoi(strtok(NULL, "\0"));
@@ -437,7 +437,7 @@ int main(){
 	} else if(strcmp(ext,"ppm") == 0) {
 
 		//Eseguo la lettura da file .ppm
-		/*if(LetturaFilePPM(nomeFile) == 0)
+		if(LetturaFilePPM(nomeFile) == 0)
 			printf("Lettura immagine completata\n");
 
 		//Compilo la struttura che contiene la lista dei colori
@@ -459,7 +459,7 @@ int main(){
 		free(colori);
 		free(palette);
 		free(pixel);
-		free(pixelGif);*/
+		free(pixelGif);
 
 		//Leggo l'immagine gif
 		strcpy(nomeFile,"assassins_creed_syndicate-1280x800.gif");
