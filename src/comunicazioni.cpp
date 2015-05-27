@@ -11,35 +11,31 @@
 #include<stdlib.h>
 #include<string>
 #include<conio.h>
-//#include<iostream>
+#include<bitset>
+#include<iostream>
 
-//Struttura in cui vengono inseriti i valori dei pixel trovati
-typedef struct pixelInfo{
+typedef struct{
+	char *simbolo;
 	int R;
 	int G;
 	int B;
-}pixelInfo;
-
-//Struttura in cui vengono inseriti i colori trovati
-typedef struct colorVet{
-	char simbolo[3];
-	int R;
-	int G;
-	int B;
-	int occorrenza;
+	int occorrenze;
 }colorVet;
 
-//Dichiaro le variabili globali utilizzate in futuro
-pixelInfo *pixel;
-colorVet *colori;
-int larghezza, altezza, grandezzaColori;
 
-int LetturaFileXPM(char nomeFile[]) {
+colorVet *colori;
+char *matriceImmagine,*paletteGlobale;
+int larghezza,altezza,numColori,bitColore;
+
+/*Al termine di questa funzione abbiamo una lista di colori ordinata con il rispettivo simbolo e occorrenza
+ * in più abbiamo una matrice dell'immagine scritta tutta su un vettore
+ * e le informazioni riguardanti l'immagine
+ */
+int LetturaFileXPM(char nomeFile[]){
 
 	FILE *fin;
-	char line[256],*str;
-	unsigned int cline=0,numColori,bitColore,i,c=0;
-	std::string::size_type sz = 0;
+	char *line,hexString[2],simboloConf[bitColore];
+	int cline=0,i,k,c=0,j=0;
 
 	fin = fopen(nomeFile,"r+");
 	if(fin == NULL){
@@ -50,19 +46,24 @@ int LetturaFileXPM(char nomeFile[]) {
 		printf("file aperto correttamente\n");
 	}
 
+	line = (char*) malloc (256 * sizeof(char));
+
 	while(!(feof(fin))){
 
+		char *str;
 		fscanf(fin, " %[^\n]",line);
 		cline++;
 
-		if(cline == 4){
+		//queste variazioni agli indici vanno bene soltanto nel caso in cui il file sia stato convertito con gimp
+		if(cline == 3){
 			//andiamo a leggere tutti i parametri dell'immagine
 
 			str = strtok(line," ");
 			for(i=0;i<(strlen(str)-1);i++){
 				str[i] = str[i+1];
 			}
-			str[4] = '\0';
+
+			str[strlen(str) - 1] = '\0';
 			larghezza = atoi(str);
 
 			while(str != NULL){
@@ -74,232 +75,248 @@ int LetturaFileXPM(char nomeFile[]) {
 					break;
 				case 1:
 					numColori = atoi(str);
+					colori = (colorVet*) malloc (numColori * sizeof(colorVet));
 					break;
 				case 2:
 					for(i=0;i<strlen(str);i++){
 						if(str[i] == '"'){
 							str[i] = '\0';
-
-							//costringo il ciclo for a finire
-							//anche se secondo me dopo aver messo il terminatore di stringa
-							//non dovrebbe servire
+							//condizione di chiusura for
 							i = strlen(str);
 						}
 					}
 					bitColore = atoi(str);
+					line = (char*) malloc (larghezza * bitColore * sizeof(char));
+					//ricordati di leggere bene questo vettore o è la fine
+					matriceImmagine = (char*) malloc (altezza * larghezza * bitColore *sizeof(char));
 					break;
 				}
 				c++;
 			}
 		}
 
-		colori = (colorVet*) malloc (numColori * sizeof(colorVet));
+		else if((cline >= 4) && (cline <= numColori + 3)){
 
-		if((cline >= 5) && (cline <= 260)){
-			//salviamo in una struct con tutti i colori dell'immagine
-
-			str = strtok(line,"c");
+			colori[cline - 4].simbolo = (char*) malloc (bitColore*sizeof(char));
+			//simbolo colore
 			for(i=0;i<bitColore;i++){
-				str[i] = str[i+1];
+				colori[cline - 4].simbolo[i] = line[i+1];
 			}
-			str[bitColore] = '\0';
-			strcpy(colori[cline - 5].simbolo,str);
-			printf("%s\n",colori[cline -5].simbolo);
+			colori[cline - 4].simbolo[bitColore] = '\0';
+			colori[cline - 4].occorrenze = 0;
 
+			str = strtok(line,"#");
+			str = strtok(NULL,",");
+
+			//prendo le tre componenti RGB e le porto in decimale
+			hexString[0] = str[0];
+			hexString[1] = str[1];
+			colori[cline - 4].R = strtol(hexString,NULL,16);
+			hexString[0] = str[2];
+			hexString[1] = str[3];
+			colori[cline - 4].G = strtol(hexString,NULL,16);
+			hexString[0] = str[4];
+			hexString[1] = str[5];
+			colori[cline - 4].B = strtol(hexString,NULL,16);
+
+			//sono in ordine dal piu piccolo al piu grande, il colore successivo, ha almeno
+			//due componenti maggiori di quello precedente
 		}
 
-		//questa è solo una prova
-		if(cline > 260){
-			getch();
+		else if((cline > numColori + 3) && (cline < altezza + numColori + 4)){
+
+			//il vettore che contiene tutta l'immagine è scritto riga per riga
+			c = 0;
+			for(i=1;i<(strlen(line) - 2);i++){
+
+				//c è l'indice che mi dice quando sono stati salvati due simboli, quindi
+				//quando posso prendere i due simboli per controllare l'occorrenza
+				c++;
+				//copio un carattere del simbolo all'interno della matrice
+				matriceImmagine[j] = line[i];
+				//j è l'indice con cui vado a salvari simboli nella matrice
+				j++;
+				if(c == bitColore){
+					c = 0;
+					for(j=bitColore-1;j>=0;j--){
+						simboloConf[c] = line[i-j];
+						c++;
+					}
+					c = 0;
+					simboloConf[bitColore] = '\0';
+
+					for(k=0;k<numColori;k++){
+						//è una ricerca per simbolo non per valore non posso fare la dicotomica
+						if(strcmp(simboloConf,colori[k].simbolo) == 0){
+							colori[k].occorrenze++;
+						}
+					}
+				}
+			}
+		}
+
+		else{
+				//controllo i casi che non rientrano in nessun if
 		}
 	}
 
+	printf("finito\n");
+	free(line);
+	getch();
 	fclose(fin);
 	return 0;
 }
 
-int LetturaFilePPM(char nomeFile[]) {
+/*
+ * in questa funzione andiamo a costruire la palette globale dell'immagine basandoci sulle occorrenze dei vari colori
+ * all'interno dell'immagine, e basandoci sul numero di colori con cui ci viene richiesta la palette
+ * coloriPalette: è il numero di colori con il quale voglio costruire la palette
+ */
+int CostruzionePaletteGlobale(int coloriPalette){
 
-	//Dichiaro alcune variabili utili per la lettura da file
-	FILE *fin;
-	char line[256];
-	int cline = 0, cpixel = 0;
-	std::string::size_type sz = 0;
+	int i,k,j,t,c=0,coloriEliminati=0,flag=0;
+	colorVet scambio;
 
-	//Apro il file per la lettura controllando che non ci siano problemi
-	fin = fopen(nomeFile,"r+");
-	if(fin == NULL) {
-		fclose(fin);
-		return -1;
-	} else {
-		printf("file aperto correttamente\n");
-	}
+	//lo moltiplico per tre, perche 3 sono le componenti del colore
+	paletteGlobale = (char*) malloc (3*coloriPalette*sizeof(char));
 
-	//leggo completamente il file
-	while (!(feof(fin))){
-
-		//leggo una linea dal file
-		fscanf(fin, " %[^\n]", line);
-		cline++;
-
-		//Leggo le infomazioni di ogni pixel
-		if (cline > 4) {
-
-			//Inserisco le informazioni nella struttura pixel
-			if (cline % 3 == 2)
-				pixel[cpixel].R = atoi(line);
-			else if(cline % 3 == 0)
-				pixel[cpixel].G = atoi(line);
-			else {
-				pixel[cpixel].B = atoi(line);
-				cpixel++;
+	//ordino il vettore che contiene tutti i colori per occorrenze
+	for(i=0;i<numColori-1;i++){
+		for(j=i+1;j<numColori;j++){
+			if(colori[j].occorrenze > colori[i].occorrenze){
+				scambio = colori[i];
+				colori[i] = colori[j];
+				colori[j] = scambio;
 			}
-
-		//Nella terza riga del file ricavo larghezza e altezza immagine
-		} else if (cline == 3) {
-			larghezza = atoi(strtok(line," "));
-			altezza = atoi(strtok(NULL,"\0"));
-
-			//Alloco la struttura dati che contiene tutti i dati dei pixel
-			pixel = (pixelInfo*) malloc (larghezza * altezza * sizeof(pixelInfo));
-
-		//Nella quarta riga del file ricavo il numero dei colori
-		} else if (cline == 4) {
-			grandezzaColori = larghezza * altezza;
-
-			//Alloco la struttura dati contenente la lista di colori dell'immagine originale
-			colori = (colorVet*) malloc (grandezzaColori * sizeof(colorVet));
-		}
-	}
-	fclose(fin);
-	return 0;
-}
-
-//Funzione che cerca la posizione adatta per un colore che cambia occorrenza
-int aggiornaPosizione(int posAttuale) {
-
-	//Dichiaro una variabile per gestire la ricerca
-	int i, temp;
-
-	//Controllo se è necessario cercare la posizione nuova
-	if(colori[posAttuale].occorrenza == colori[0].occorrenza) {
-		return posAttuale;
-
-	//Se la posizione attuale non va bene
-	} else {
-
-		//Scorro il vettore verso l'alto rispetto la posizione attuale
-		i = posAttuale - 1;
-		while(i >= 0 && colori[i].occorrenza < colori[posAttuale].occorrenza)
-			i--;
-
-		//Dopo aver trovato la nuova posizione effettuo uno scambio
-		temp = colori[i + 1].occorrenza;
-		colori[i + 1].occorrenza = colori[posAttuale].occorrenza;
-		colori[posAttuale].occorrenza = temp;
-		}
-
-	return -1;
-}
-
-//Funzione che trova la posizione di un colore all'interno della lista colori
-int trovaPosizione(int R, int G, int B) {
-
-	//Dichiaro una variabile utile a gestire la ricerca
-	int i;
-
-	//Scorro la lista dei colori per trovare se il colore è già presente o meno
-	for(i = 0; i < grandezzaColori; i++) {
-
-		//Controllo la presenza o meno di un colore nella posizione attuale
-		if(colori[i].occorrenza != 0) {
-			if(R == colori[i].R && G == colori[i].G && B == colori[i].B) {
-
-				//Aggiorno la lista dei colori
-				colori[i].occorrenza++;
-				return i;
-			}
-
-		//In caso contrario aggiungo il colore nella lista dei colori
-		} else {
-			colori[i].R = R;
-			colori[i].G = G;
-			colori[i].B = B;
-			colori[i].occorrenza++;
-			printf("%d-", i);
-			return i;
 		}
 	}
 
-	return 0;
-}
+	//prova stampa delle occorrenze
+	//for(i=0;i<numColori;i++){
+	//	printf("%d\n",colori[i].occorrenze);
+	//}
 
-//Funzione che stampa a video i pixel in modo ordinato
-void stampaPixel() {
+	j = 0;
+	for(i=0;i<coloriPalette;i++){
+		//creo la pelette globale con i "coloriPalette" piu utilizzati nell immagine XPM
+		paletteGlobale[j] = (colori[i].R) & 0xFF;
+		paletteGlobale[j+1] = (colori[i].G) & 0xFF;
+		paletteGlobale[j+2] = (colori[i].B) & 0xFF;
+		j = j + 3;
+	}
 
-	//Indice utilizzato per effettuare l'accesso a ogni componente della struttura
-	int i;
 
-	//Scorro tutta la struttura dati
-	for(i = 0; i < larghezza * altezza; i++) {
-
-		//Stampo ogni pixel
-		printf("%d %d %d-", pixel[i].R, pixel[i].G, pixel[i].B);
-
-		//Stampo la riga successiva
-		if(i % larghezza == larghezza -1)
+	//stampa della palette
+	//stampa in bit 0 e 1 delle tre componenti dei colori
+	for(i=0;i<3*coloriPalette;i++){
+		std::bitset<8> x(paletteGlobale[i]);
+		std::cout << (x) <<'\n';
+		if(((i+1) % 3) == 0){
 			printf("\n");
+		}
 	}
+
+	//-----------------------------------------------------------------------------------------
+	getch();
+	for(i=0;i<3*coloriPalette-3;i=i+3){
+		//con questo ciclo dovrei prendere tutte le componenti rosse
+		//non devo usare il 4 ma devo usare la funzione logaritmo ho scritto sul foglio
+		//ho controllato lo shift funziona
+		flag = 0;
+		printf("%d\n",i);
+		for(j=i+3;j<3*coloriPalette;j=j+3){
+
+			if((paletteGlobale[i] >> 4) == (paletteGlobale[j] >> 4)){
+				//componente rossa
+				c++;
+			}
+			if((paletteGlobale[i+1] >> 4) == (paletteGlobale[j+1] >> 4)){
+				//componente verde
+				c++;
+			}
+			if((paletteGlobale[i+2] >> 4) == (paletteGlobale[j+2] >> 4)){
+				//componente blu
+				c++;
+			}
+
+			if(c == 3){
+				//allora due colori sono molto simili
+				//nel caso entro qui dentro allora devo fare una scalatura dei colori e memorizzare il numero di bit che
+				//devo cancellare
+				printf("dentro\n");
+				if(j >= (3*coloriPalette - 3*coloriEliminati)){
+					printf("dentro2\n");
+					continue;
+				}
+				else{
+					t = j;
+					for(k=j+3;k<3*coloriPalette;k=k+3){
+						paletteGlobale[t] = paletteGlobale[k];
+						paletteGlobale[t+1] = paletteGlobale[k+1];
+						paletteGlobale[t+2] = paletteGlobale[k+2];
+						t = t + 3;
+					}
+					//metto a zero l'ultima posizione
+					// '\0' corrisponde ad una stringa di 8 bit di soli zeri
+					paletteGlobale[3*coloriPalette-3] = '\0';
+					paletteGlobale[3*coloriPalette-2] = '\0';
+					paletteGlobale[3*coloriPalette-1] = '\0';
+					flag++;
+
+					for(i=0;i<3*coloriPalette;i++){
+						std::bitset<8> x(paletteGlobale[i]);
+						std::cout << (x) <<'\n';
+						if(((i+1) % 3) == 0){
+							printf("\n");
+						}
+					}
+					getch();
+				}
+			}
+			if(flag > 0){
+				coloriEliminati++;
+			}
+			if(c > 0){
+				//azzero c
+				c = 0;
+			}
+		}
+	}
+	printf("%d\n",coloriEliminati);
+	//------------------------------------------------------------------------------------------
+
+
+
+
+	//stampa della palette
+	//stampa in bit 0 e 1 delle tre componenti dei colori
+	for(i=0;i<3*coloriPalette;i++){
+		std::bitset<8> x(paletteGlobale[i]);
+		std::cout << (x) <<'\n';
+		if(((i+1) % 3) == 0){
+			printf("\n");
+		}
+	}
+
+
+	getch();
+	return 0;
 }
 
-//Funzione che scrive i pixel all'interno del file
-void scriviColori() {
+int LetturaFilePPM(char nomeFile[]){
 
-	//Variabili locali utili
-	int i = 0;
-	FILE *fout = fopen("ListaColori.txt", "w");
-	if(fout == NULL) {
-		fclose(fout);
-	} else {
-		printf("file aperto correttamente\n");
-	}
-
-	//Scorro tutta la struttura dati
-	while(i < grandezzaColori && colori[i].occorrenza != 0) {
-
-		//Scrivo all'interno del file
-		fprintf(fout, "R %d:G %d:B %d:O %d\n", colori[i].R, colori[i].G, colori[i].B, colori[i].occorrenza);
-		i++;
-	}
-
-	fclose(fout);
+	return 0;
 }
 
-//Funzione che compila la lista di colori dai valori dei pixel PPM
-void compilaListaColori() {
-
-	//Indice utilizzato per effettuare l'accesso a ogni componente delle strutture
-	int i, posAttuale;
-
-	//Inizializzo la struttura per l'inserimento ordinato
-	for(i = 0; i < grandezzaColori; i++)
-		colori[i].occorrenza = 0;
-
-	//Scorro tutta la struttura che contiene i dati dei pixel per ricavare i colori
-	for(i = 0; i < larghezza * altezza; i++) {
-		posAttuale = trovaPosizione(pixel[i].R,pixel[i].G,pixel[i].B);
-		aggiornaPosizione(posAttuale);
-	}
-}
 int main(){
 
-	int res, i,k=2;
+	int res, i,k=2,coloriPalette=0,tipoPalette=0;
 	char *nomeFile,ext[3];
 
 	//di sicuro ci sono modi piu efficaci
-	res = strlen("assassins_creed_syndicate-1280x800.ppm");
+	res = strlen("2.xpm");
 	nomeFile = (char*) malloc (res*sizeof(char));
-	strcpy(nomeFile,"assassins_creed_syndicate-1280x800.ppm");
+	strcpy(nomeFile,"2.xpm");
 
 	//ciclo che prende l'estensione del file
 	for(i=res-1;i>=res-3;i--){
@@ -307,23 +324,60 @@ int main(){
 		k--;
 	}
 
-	//Controllo l'estensione per decidere quale funzione utilizzare
-	if(strcmp(ext,"xpm")==0) {
-		res = LetturaFileXPM(nomeFile);
-	} else if(strcmp(ext,"ppm")==0) {
-		res = LetturaFilePPM(nomeFile);
+	if(strcmp(ext,"xpm")==0){
+		res |= LetturaFileXPM(nomeFile);
+	}
+	//if(strcmp(ext,"ppm")==0){
+	//	res |= LetturaFilePPM(nomeFile);
+	//}
 
-		//Compilo la struttura che contiene la lista dei colori
-		compilaListaColori();
+	while((tipoPalette != 1) && (tipoPalette != 2)){
+		printf("Per la coversione vuoi fare usare una palette globale o una palette locale ?\n");
+		printf("1)palette globale\n");
+		printf("2)palette locale\n");
+		scanf("%d",&tipoPalette);
+	}
 
-		//Scrivo la lista dei colori nel file
-		scriviColori();
-	} else {
+	if(tipoPalette == 1){
+		//costruzione palette globale
+
+		while((coloriPalette != 1) && ((coloriPalette != 2)) && ((coloriPalette != 3)) && ((coloriPalette != 4)) && ((coloriPalette != 5))){
+			printf("da quanti colori vuoi che la palette sia formata ?\n");
+			printf("1)16\n");
+			printf("2)32\n");
+			printf("3)64\n");
+			printf("4)128\n");
+			printf("5)256\n");
+			scanf("%d",&coloriPalette);
+		}
+
+		switch(coloriPalette){
+		case 1:
+			res = CostruzionePaletteGlobale(16);
+			break;
+		case 2:
+			res = CostruzionePaletteGlobale(32);
+			break;
+		case 3:
+			res = CostruzionePaletteGlobale(64);
+			break;
+		case 4:
+			res = CostruzionePaletteGlobale(128);
+			break;
+		case 5:
+			res = CostruzionePaletteGlobale(256);
+			break;
+		}
+
+	}
+	else if(tipoPalette == 2){
+		//costruzione palette locale
+	}
+
+	if(res < 0){
 		printf("errore\n");
 	}
 
-	scanf("%d",&i);
-	//Libero le strutture precedentemente utilizzate
 	free(nomeFile);
 	free(colori);
 	return 0;
