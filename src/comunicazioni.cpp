@@ -24,7 +24,8 @@ typedef struct{
 
 
 colorVet *colori;
-char *matriceImmagine,*paletteGlobale;
+char *matriceImmagine;
+unsigned char *paletteGlobale;
 int larghezza,altezza,numColori,bitColore;
 
 /*Al termine di questa funzione abbiamo una lista di colori ordinata con il rispettivo simbolo e occorrenza
@@ -51,6 +52,7 @@ int LetturaFileXPM(char nomeFile[]){
 	while(!(feof(fin))){
 
 		char *str;
+		int t = 0;
 		fscanf(fin, " %[^\n]",line);
 		cline++;
 
@@ -105,8 +107,13 @@ int LetturaFileXPM(char nomeFile[]){
 			colori[cline - 4].simbolo[bitColore] = '\0';
 			colori[cline - 4].occorrenze = 0;
 
-			str = strtok(line,"#");
-			str = strtok(NULL,",");
+			str = (char*) malloc (6*sizeof(char));
+			for(i=0;i<strlen(line);i++){
+				if((i > 6) && (i < 13)){
+					str[t] = line[i];
+					t++;
+				}
+			}
 
 			//prendo le tre componenti RGB e le porto in decimale
 			hexString[0] = str[0];
@@ -174,14 +181,18 @@ int LetturaFileXPM(char nomeFile[]){
  */
 int CostruzionePaletteGlobale(int coloriPalette){
 
-	int i,k,j,t,c = 0,indiceColore = 0,flag = 0,numColoriAssegnati = 0;
+	int i,k,j,t,c = 0,indiceColore = 0,flag = 0,numColoriAssegnati = 0,bitPrecisione;
 	colorVet scambio;
-	char verifica[3];
+	unsigned char verifica[3];
 
 	//lo moltiplico per tre, perche 3 sono le componenti del colore
-	paletteGlobale = (char*) malloc (3*coloriPalette*sizeof(char));
+	paletteGlobale = (unsigned char*) malloc (3*coloriPalette*sizeof(unsigned char));
+
+	//vado a settare i bit per controllare i colori simili
+	bitPrecisione = 6;
 
 	//ordino il vettore che contiene tutti i colori per occorrenze
+	//questa operazione andrebbe fatta al momento dell'inserimento
 	for(i=0;i<numColori-1;i++){
 		for(j=i+1;j<numColori;j++){
 			if(colori[j].occorrenze > colori[i].occorrenze){
@@ -210,62 +221,75 @@ int CostruzionePaletteGlobale(int coloriPalette){
 	indiceColore = j;
 
 	for(k=1;k<numColori;k++){
-		flag = 0;
-		verifica[0] = colori[k].R & 0xFF;
-		verifica[1] = colori[k].G & 0xFF;
-		verifica[2] = colori[k].B & 0xFF;
-		for(j=0;(j<3*coloriPalette && flag == 0);j=j+3){
-			if(((verifica[0] >> 4) == (paletteGlobale[j] >> 4)) && (((verifica[1] >> 4) == (paletteGlobale[j+1] >> 4))) && (((verifica[2] >> 4) == (paletteGlobale[j+2] >> 4)))){
-				break;
-			}
-			if(j == indiceColore){
-				//devo scrivere nelle successive posizioni di j
-				paletteGlobale[j+3] = (colori[k].R) & 0xFF;
-				paletteGlobale[j+4] = (colori[k].G) & 0xFF;
-				paletteGlobale[j+5] = (colori[k].B) & 0xFF;
-				indiceColore = j + 3;
-				flag = 1;
-				numColoriAssegnati++;
-			}
-		}
-	}
-
-
-	//nel caso in cui i colori che non sono simili non bastano per riempire tutta la palette
-	//faccio un ciclo in cui vado a reinserire tenendo sempre come ordinamento le occorrenze per questi ultimi
-	//cioè dopo l'inserimento di tutti i colori non simili, gli ultimi colori saranno inseriti in base alle
-	//occorrenze calcolate precedentemente
-	if(numColoriAssegnati < coloriPalette){
-		for(k=1;k<numColori;k++){
+		if(numColoriAssegnati < coloriPalette){
 			flag = 0;
 			verifica[0] = colori[k].R & 0xFF;
 			verifica[1] = colori[k].G & 0xFF;
 			verifica[2] = colori[k].B & 0xFF;
-			for(j=0;j<indiceColore;j=j+3){
-				//controllo se il colore l'ho gia inserito all'interno della palette
-				//con questo indice dovrei arrivare all'ultimo valore inserito
-				if((verifica[0] == paletteGlobale[j]) && ((verifica[1] == paletteGlobale[j+1])) && ((verifica[2] == paletteGlobale[j+2]))){
-					flag = 0;
+			for(j=0;(j<3*coloriPalette && flag == 0);j=j+3){
+				if(((verifica[0] >> bitPrecisione) == (paletteGlobale[j] >> bitPrecisione)) && (((verifica[1] >> bitPrecisione) == (paletteGlobale[j+1] >> bitPrecisione))) && (((verifica[2] >> bitPrecisione) == (paletteGlobale[j+2] >> bitPrecisione)))){
 					break;
 				}
-				else{
+				if(j == indiceColore){
+					//devo scrivere nelle successive posizioni di j
+					paletteGlobale[j+3] = verifica[0]; //R
+					paletteGlobale[j+4] = verifica[1]; //G
+					paletteGlobale[j+5] = verifica[2]; //B
+					indiceColore = j + 3;
 					flag = 1;
+					numColoriAssegnati++;
 				}
 			}
-			if(flag == 1){
-				//se non l'ho inserito lo inserisco alla prima posizione libera in teoria
-				paletteGlobale[indiceColore+1] = (colori[k].R) & 0xFF;
-				paletteGlobale[indiceColore+2] = (colori[k].G) & 0xFF;
-				paletteGlobale[indiceColore+3] = (colori[k].B) & 0xFF;
-				numColoriAssegnati++;
+		}
+		else{
+			break;
+		}
+	}
+
+	printf("numColoriAssegnati = %d\n",numColoriAssegnati);
+
+	//nel caso in cui i colori che non sono simili non bastano per riempire tutta la palette
+	//faccio un ciclo in cui vado a reinserire tenendo sempre come ordinamento le occorrenze per questi ultimi
+	//cioè dopo l'inserimento di tutti i colori non simili, gli ultimi colori saranno inseriti in base alle
+	//occorrenze calcolate precedentemente.
+	if(numColoriAssegnati < coloriPalette){
+		for(k=1;k<numColori;k++){
+			if(numColoriAssegnati < coloriPalette){
+				flag = 1;
+				verifica[0] = colori[k].R & 0xFF;
+				verifica[1] = colori[k].G & 0xFF;
+				verifica[2] = colori[k].B & 0xFF;
+				for(j=0;j<indiceColore;j=j+3){
+					//controllo se il colore l'ho gia inserito all'interno della palette
+					//con questo indice dovrei arrivare all'ultimo valore inserito
+					if((verifica[0] == paletteGlobale[j]) && ((verifica[1] == paletteGlobale[j+1])) && ((verifica[2] == paletteGlobale[j+2]))){
+						flag = 0;
+						break;
+					}
+					else{
+						flag = 1;
+					}
+				}
+				if(flag == 1){
+					//se non l'ho inserito lo inserisco alla prima posizione libera in teoria
+					paletteGlobale[indiceColore+3] = colori[k].R & 0xFF;
+					paletteGlobale[indiceColore+4] = colori[k].G & 0xFF;
+					paletteGlobale[indiceColore+5] = colori[k].B & 0xFF;
+					indiceColore = indiceColore + 3;
+					numColoriAssegnati++;
+				}
+			}
+			else{
+				break;
 			}
 		}
 	}
+	printf("numColoriAssegnati = %d\n",numColoriAssegnati);
 //------------------------------------------------------------------------------------------------------------
 
 	//stampa della palette
 	//stampa in bit 0 e 1 delle tre componenti dei colori
-	/*printf("\n");
+	printf("\n");
 	j=0;
 	for(i=0;i<3*coloriPalette;i++){
 		std::bitset<8> x(paletteGlobale[i]);
@@ -273,7 +297,7 @@ int CostruzionePaletteGlobale(int coloriPalette){
 		if(((i+1) % 3) == 0){
 			printf("\n");
 		}
-	}*/
+	}
 
 	getch();
 	return 0;
