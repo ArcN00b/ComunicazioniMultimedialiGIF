@@ -174,8 +174,9 @@ int LetturaFileXPM(char nomeFile[]){
  */
 int CostruzionePaletteGlobale(int coloriPalette){
 
-	int i,k,j,t,c=0,coloriEliminati=0,flag=0;
+	int i,k,j,t,c=0,indiceColore=0,flag=0;
 	colorVet scambio;
+	char verifica[3];
 
 	//lo moltiplico per tre, perche 3 sono le componenti del colore
 	paletteGlobale = (char*) malloc (3*coloriPalette*sizeof(char));
@@ -191,105 +192,46 @@ int CostruzionePaletteGlobale(int coloriPalette){
 		}
 	}
 
-	//prova stampa delle occorrenze
-	//for(i=0;i<numColori;i++){
-	//	printf("%d\n",colori[i].occorrenze);
-	//}
-
-	j = 0;
-	for(i=0;i<coloriPalette;i++){
-		//creo la pelette globale con i "coloriPalette" piu utilizzati nell immagine XPM
-		paletteGlobale[j] = (colori[i].R) & 0xFF;
-		paletteGlobale[j+1] = (colori[i].G) & 0xFF;
-		paletteGlobale[j+2] = (colori[i].B) & 0xFF;
-		j = j + 3;
-	}
-
-
-	//stampa della palette
-	//stampa in bit 0 e 1 delle tre componenti dei colori
-	for(i=0;i<3*coloriPalette;i++){
-		std::bitset<8> x(paletteGlobale[i]);
-		std::cout << (x) <<'\n';
-		if(((i+1) % 3) == 0){
-			printf("\n");
-		}
-	}
-
-	//-----------------------------------------------------------------------------------------
-	getch();
-	for(i=0;i<3*coloriPalette-3;i=i+3){
-		//con questo ciclo dovrei prendere tutte le componenti rosse
-		//non devo usare il 4 ma devo usare la funzione logaritmo ho scritto sul foglio
-		//ho controllato lo shift funziona
+//----------------------------------------------------------------------------------------------
+	//funzionaaaaa
+	//con questa funzione se vogliamo differenziare ancora di piu la palette allora basta aumentare
+	//il numero di bit che controlliamo che non siano uguali
+	//vado a riempire la palette di colori
 		flag = 0;
-		printf("%d\n",i);
-		for(j=i+3;j<3*coloriPalette;j=j+3){
+		k = 0;
+		j = 0;
 
-			if((paletteGlobale[i] >> 4) == (paletteGlobale[j] >> 4)){
-				//componente rossa
-				c++;
-			}
-			if((paletteGlobale[i+1] >> 4) == (paletteGlobale[j+1] >> 4)){
-				//componente verde
-				c++;
-			}
-			if((paletteGlobale[i+2] >> 4) == (paletteGlobale[j+2] >> 4)){
-				//componente blu
-				c++;
-			}
+			paletteGlobale[k*3] = (colori[k].R) & 0xFF;
+			paletteGlobale[(k*3)+1] = (colori[k].G) & 0xFF;
+			paletteGlobale[(k*3)+2] = (colori[k].B) & 0xFF;
+			//indico l'ultima posizione scritta
+			indiceColore = j;
 
-			if(c == 3){
-				//allora due colori sono molto simili
-				//nel caso entro qui dentro allora devo fare una scalatura dei colori e memorizzare il numero di bit che
-				//devo cancellare
-				printf("dentro\n");
-				if(j >= (3*coloriPalette - 3*coloriEliminati)){
-					printf("dentro2\n");
-					continue;
-				}
-				else{
-					t = j;
-					for(k=j+3;k<3*coloriPalette;k=k+3){
-						paletteGlobale[t] = paletteGlobale[k];
-						paletteGlobale[t+1] = paletteGlobale[k+1];
-						paletteGlobale[t+2] = paletteGlobale[k+2];
-						t = t + 3;
+			for(k=1;k<numColori;k++){
+				flag = 0;
+				for(j=0;(j<3*coloriPalette && flag == 0);j=j+3){
+					verifica[0] = colori[k].R & 0xFF;
+					verifica[1] = colori[k].G & 0xFF;
+					verifica[2] = colori[k].B & 0xFF;
+					if(((verifica[0] >> 4) == (paletteGlobale[j] >> 4)) && (((verifica[1] >> 4) == (paletteGlobale[j+1] >> 4))) && (((verifica[2] >> 4) == (paletteGlobale[j+2] >> 4)))){
+						break;
 					}
-					//metto a zero l'ultima posizione
-					// '\0' corrisponde ad una stringa di 8 bit di soli zeri
-					paletteGlobale[3*coloriPalette-3] = '\0';
-					paletteGlobale[3*coloriPalette-2] = '\0';
-					paletteGlobale[3*coloriPalette-1] = '\0';
-					flag++;
-
-					for(i=0;i<3*coloriPalette;i++){
-						std::bitset<8> x(paletteGlobale[i]);
-						std::cout << (x) <<'\n';
-						if(((i+1) % 3) == 0){
-							printf("\n");
-						}
+					if(j == indiceColore){
+						//devo scrivere nelle successive posizioni di j
+						paletteGlobale[j+3] = (colori[k].R) & 0xFF;
+						paletteGlobale[j+4] = (colori[k].G) & 0xFF;
+						paletteGlobale[j+5] = (colori[k].B) & 0xFF;
+						indiceColore = j + 3;
+						flag = 1;
 					}
-					getch();
 				}
 			}
-			if(flag > 0){
-				coloriEliminati++;
-			}
-			if(c > 0){
-				//azzero c
-				c = 0;
-			}
-		}
-	}
-	printf("%d\n",coloriEliminati);
-	//------------------------------------------------------------------------------------------
-
-
-
+//------------------------------------------------------------------------------------------------------------
 
 	//stampa della palette
 	//stampa in bit 0 e 1 delle tre componenti dei colori
+	printf("\n");
+	j=0;
 	for(i=0;i<3*coloriPalette;i++){
 		std::bitset<8> x(paletteGlobale[i]);
 		std::cout << (x) <<'\n';
@@ -297,7 +239,6 @@ int CostruzionePaletteGlobale(int coloriPalette){
 			printf("\n");
 		}
 	}
-
 
 	getch();
 	return 0;
