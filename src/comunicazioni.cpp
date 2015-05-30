@@ -22,21 +22,17 @@ typedef struct pixelInfo{
 
 //Struttura in cui vengono inseriti i colori trovati
 typedef struct colorVet{
-	char simbolo;
+	unsigned char simbolo;
 	int R;
 	int G;
 	int B;
 	int occorrenza;
 }colorVet;
 
-typedef struct simboli{
-	char simbolo;
-}simboli;
-
 //Dichiaro le variabili globali utilizzate in futuro
-pixelInfo *pixel;
-colorVet *colori, *palette;
-simboli *pixelGif;
+pixelInfo *pixel, *palette;
+colorVet *colori;
+unsigned char *pixelGif;
 int larghezza, altezza, numColori;
 
 /*int LetturaFileXPM(char nomeFile[]) {
@@ -183,7 +179,7 @@ int LetturaFileGIF(char nomeFile[]) {
 
 	//Dichiaro alcune variabili utili per la lettura da file
 	FILE *fin;
-	char line[256], *temp;
+	char line[256];
 	int cline = 0, cpixel = 0, ccolori = 0, i;
 	numColori = 256; // temporaneo
 	std::string::size_type sz = 0;
@@ -204,29 +200,22 @@ int LetturaFileGIF(char nomeFile[]) {
 
 		//Leggo le informazioni di ogni pixel
 		if(cline > numColori + 1) {
-			pixelGif[cpixel].simbolo = line[0];
-			cpixel++;
+			pixelGif[cpixel++] = (unsigned char) atoi(line);
 
 		//Leggo le informazioni delle palette
 		} else if(cline > 1 && cline <= numColori + 1){
 			printf("%s\n", line);
-			temp = strtok(line, " ");
-			/*if(temp != NULL)
-				palette[ccolori].simbolo = temp[0];
-			else
-				palette[ccolori].simbolo = NULL;*/
-			palette[ccolori].R = atoi(strtok(NULL, " "));
+			palette[ccolori].R = atoi(strtok(line, " "));
 			palette[ccolori].G = atoi(strtok(NULL, " "));
-			palette[ccolori].B = atoi(strtok(NULL, "\0"));
-			ccolori++;
+			palette[ccolori++].B = atoi(strtok(NULL, "\0"));
 
 		//Ricavo le informazioni sull'immagine
 		} else {
 			larghezza = atoi(strtok(line, " "));
 			altezza = atoi(strtok(NULL, " "));
 			numColori = atoi(strtok(NULL, "\0"));
-			palette = (colorVet*) malloc(numColori * sizeof(colorVet));
-			pixelGif = (simboli*) malloc(larghezza * altezza * sizeof(simboli));
+			palette = (pixelInfo*) malloc(numColori * sizeof(pixelInfo));
+			pixelGif = (unsigned char*) malloc(larghezza * altezza * sizeof(unsigned char));
 		}
 	}
 
@@ -235,9 +224,9 @@ int LetturaFileGIF(char nomeFile[]) {
 
 	//Associo ad ogni pixel il valore ricavato dalla palette
 	for(i = 0; i < larghezza * altezza; i++) {
-		pixel[i].R = palette[(int) pixelGif[i].simbolo].R;
-		pixel[i].G = palette[(int) pixelGif[i].simbolo].G;
-		pixel[i].B = palette[(int) pixelGif[i].simbolo].B;
+		pixel[i].R = palette[(int) pixelGif[i]].R;
+		pixel[i].G = palette[(int) pixelGif[i]].G;
+		pixel[i].B = palette[(int) pixelGif[i]].B;
 	}
 
 	//Chiudo il file e ritorno un valore di default
@@ -299,13 +288,14 @@ void creaDatiGif(int grandezza) {
 
 	//Inizializzo le strutture dati
 	numColori = grandezza;
-	palette = (colorVet*) malloc(numColori * sizeof(colorVet));
-	pixelGif = (simboli*) malloc(larghezza * altezza * sizeof(simboli));
+	palette = (pixelInfo*) malloc(numColori * sizeof(colorVet));
+	pixelGif = (unsigned char*) malloc(larghezza * altezza * sizeof(unsigned char));
 
 	//Prendo i primi grandezza colori dal vettore colori
 	for(i = 0; i < numColori; i++) {
-		palette[i] = colori[i];
-		palette[i].simbolo = (char) i;
+		palette[i].R = colori[i].R;
+		palette[i].G = colori[i].G;
+		palette[i].B = colori[i].B;
 	}
 
 	//Trovo il nuovo colore dei pixel
@@ -321,7 +311,7 @@ void creaDatiGif(int grandezza) {
 			somma = abs(pixel[i].R - palette[j].R) + abs(pixel[i].G - palette[j].G) + abs(pixel[i].B - palette[j].B);
 			if(somma < min) {
 				min = somma;
-				pixelGif[i].simbolo = palette[j].simbolo;
+				pixelGif[i] = (unsigned char) j;
 			}
 		}
 	}
@@ -403,12 +393,13 @@ int scriviGIF(char nomeFile[]) {
 	fprintf(fout, "%d %d %d\n", larghezza, altezza, numColori);
 
 	//Scrivo tutta la palette
-	for(i = 0; i < numColori; i++)
-		fprintf(fout, "%c %d %d %d\n", palette[i].simbolo, palette[i].R, palette[i].G, palette[i].B);
-
+	for(i = 0; i < numColori; i++) {
+		fprintf(fout, "%d %d %d\n", palette[i].R, palette[i].G, palette[i].B);
+		printf("%d %d %d\n", palette[i].R, palette[i].G, palette[i].B);
+	}
 	//Scrivo il contenuto dei pixel
 	for(i = 0; i < larghezza * altezza; i++)
-		fprintf(fout, "%c\n", pixelGif[i].simbolo);
+		fprintf(fout, "%u\n", pixelGif[i]);
 
 	//Chiudo il file e ritorno un valore di default
 	fclose(fout);
@@ -455,7 +446,6 @@ int main(){
 			printf("Scrittura gif avvenuta con successo\n");
 
 		//Libero le strutture dati
-		free(nomeFile);
 		free(colori);
 		free(palette);
 		free(pixel);
@@ -473,7 +463,7 @@ int main(){
 		printf("errore\n");
 	}
 
-	scanf("%d",&i);
+	//scanf("%d",&i);
 	//Libero le strutture precedentemente utilizzate
 	free(nomeFile);
 	free(colori);
