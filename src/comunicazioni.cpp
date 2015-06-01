@@ -22,8 +22,12 @@ typedef struct{
 	int occorrenze;
 }colorVet;
 
+typedef struct{
+	char *simbolo;
+}paletteSimboli;
 
 colorVet *colori;
+paletteSimboli *simboli;
 char *matriceImmagine;
 unsigned char *paletteGlobale;
 int larghezza,altezza,numColori,bitColore;
@@ -188,6 +192,9 @@ int CostruzionePaletteGlobale(int coloriPalette){
 	//lo moltiplico per tre, perche 3 sono le componenti del colore
 	paletteGlobale = (unsigned char*) malloc (3*coloriPalette*sizeof(unsigned char));
 
+	//vado ad inizializzare il vettore che conterrà i simboli dei colori che si trovano dentro la palette
+	simboli = (paletteSimboli*) malloc (coloriPalette * sizeof(paletteSimboli));
+
 	//vado a settare i bit per controllare i colori simili
 	bitPrecisione = 6;
 
@@ -215,6 +222,11 @@ int CostruzionePaletteGlobale(int coloriPalette){
 	paletteGlobale[k*3] = (colori[k].R) & 0xFF;
 	paletteGlobale[(k*3)+1] = (colori[k].G) & 0xFF;
 	paletteGlobale[(k*3)+2] = (colori[k].B) & 0xFF;
+
+	//vado a copiare all'interno il simbolo del colore che viene inserito nella palette
+	simboli[k].simbolo = (char*) malloc (bitColore * sizeof(char));
+	strcpy(simboli[k].simbolo,colori[k].simbolo);
+
 	//aggiungo uno ai colori assegnati all'interno della palette
 	numColoriAssegnati++;
 	//indico l'ultima posizione scritta
@@ -235,6 +247,8 @@ int CostruzionePaletteGlobale(int coloriPalette){
 					paletteGlobale[j+3] = verifica[0]; //R
 					paletteGlobale[j+4] = verifica[1]; //G
 					paletteGlobale[j+5] = verifica[2]; //B
+					simboli[numColoriAssegnati].simbolo = (char*) malloc (bitColore * sizeof(char));
+					strcpy(simboli[numColoriAssegnati].simbolo,colori[k].simbolo);
 					indiceColore = j + 3;
 					flag = 1;
 					numColoriAssegnati++;
@@ -275,6 +289,8 @@ int CostruzionePaletteGlobale(int coloriPalette){
 					paletteGlobale[indiceColore+3] = colori[k].R & 0xFF;
 					paletteGlobale[indiceColore+4] = colori[k].G & 0xFF;
 					paletteGlobale[indiceColore+5] = colori[k].B & 0xFF;
+					simboli[numColoriAssegnati].simbolo = (char*) malloc (bitColore * sizeof(char));
+					strcpy(simboli[numColoriAssegnati].simbolo,colori[k].simbolo);
 					indiceColore = indiceColore + 3;
 					numColoriAssegnati++;
 				}
@@ -302,6 +318,23 @@ int CostruzionePaletteGlobale(int coloriPalette){
 	getch();
 	return 0;
 }
+
+//-------------------------------------------------------------------------------------
+int CostruzioneMatriceImmagineGIF(){
+
+	int i,c=0;
+
+	for(i=0;i<strlen(matriceImmagine);i++){
+		//ciclo che prende ogni simbolo dell'immagine e verifica se si trova all'interno della palette
+
+	}
+
+
+	return 0;
+}
+//-------------------------------------------------------------------------------------
+
+
 
 int LetturaFilePPM(char nomeFile[]){
 
@@ -353,19 +386,19 @@ int main(){
 
 		switch(coloriPalette){
 		case 1:
-			res = CostruzionePaletteGlobale(16);
+			res |= CostruzionePaletteGlobale(16);
 			break;
 		case 2:
-			res = CostruzionePaletteGlobale(32);
+			res |= CostruzionePaletteGlobale(32);
 			break;
 		case 3:
-			res = CostruzionePaletteGlobale(64);
+			res |= CostruzionePaletteGlobale(64);
 			break;
 		case 4:
-			res = CostruzionePaletteGlobale(128);
+			res |= CostruzionePaletteGlobale(128);
 			break;
 		case 5:
-			res = CostruzionePaletteGlobale(256);
+			res |= CostruzionePaletteGlobale(256);
 			break;
 		}
 
@@ -374,6 +407,8 @@ int main(){
 		//costruzione palette locale
 	}
 
+	res |= CostruzioneMatriceImmagineGIF();
+
 	if(res < 0){
 		printf("errore\n");
 	}
@@ -381,4 +416,5 @@ int main(){
 	free(nomeFile);
 	free(colori);
 	return 0;
+	//ricorda di togliere tutti i return 0 e di far ritornare la cosa giusta
 }
