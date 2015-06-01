@@ -23,14 +23,17 @@ typedef struct{
 }colorVet;
 
 typedef struct{
+	unsigned char R;
+	unsigned char G;
+	unsigned char B;
 	char *simbolo;
 }paletteSimboli;
 
 colorVet *colori;
-paletteSimboli *simboli;
+paletteSimboli *paletteGlobale;
 char *matriceImmagine;
-unsigned char *paletteGlobale;
-int larghezza,altezza,numColori,bitColore;
+unsigned char *matriceImmagineConvertita;
+int larghezza,altezza,numColori,bitColore,coloriPalette;
 
 /*Al termine di questa funzione abbiamo una lista di colori ordinata con il rispettivo simbolo e occorrenza
  * in più abbiamo una matrice dell'immagine scritta tutta su un vettore
@@ -40,7 +43,7 @@ int LetturaFileXPM(char nomeFile[]){
 
 	FILE *fin;
 	char *line,hexString[2],simboloConf[bitColore];
-	int cline=0,i,k,c=0,j=0;
+	int cline=0,i,k,c=0,j=0,t=0;
 
 	fin = fopen(nomeFile,"r+");
 	if(fin == NULL){
@@ -95,6 +98,7 @@ int LetturaFileXPM(char nomeFile[]){
 					line = (char*) malloc (larghezza * bitColore * sizeof(char));
 					//ricordati di leggere bene questo vettore o è la fine
 					matriceImmagine = (char*) malloc (altezza * larghezza * bitColore *sizeof(char));
+					matriceImmagineConvertita = (unsigned char*) malloc (altezza * larghezza * sizeof(unsigned char));
 					break;
 				}
 				c++;
@@ -149,8 +153,8 @@ int LetturaFileXPM(char nomeFile[]){
 				j++;
 				if(c == bitColore){
 					c = 0;
-					for(j=bitColore-1;j>=0;j--){
-						simboloConf[c] = line[i-j];
+					for(t=bitColore-1;t>=0;t--){
+						simboloConf[c] = line[i-t];
 						c++;
 					}
 					c = 0;
@@ -171,7 +175,7 @@ int LetturaFileXPM(char nomeFile[]){
 		}
 	}
 
-	printf("finito\n");
+	printf("lettura del file XPM completata\n");
 	free(line);
 	getch();
 	fclose(fin);
@@ -183,17 +187,14 @@ int LetturaFileXPM(char nomeFile[]){
  * all'interno dell'immagine, e basandoci sul numero di colori con cui ci viene richiesta la palette
  * coloriPalette: è il numero di colori con il quale voglio costruire la palette
  */
-int CostruzionePaletteGlobale(int coloriPalette){
+int CostruzionePaletteGlobale(){
 
 	int i,k,j,t,c = 0,indiceColore = 0,flag = 0,numColoriAssegnati = 0,bitPrecisione;
 	colorVet scambio;
 	unsigned char verifica[3];
 
-	//lo moltiplico per tre, perche 3 sono le componenti del colore
-	paletteGlobale = (unsigned char*) malloc (3*coloriPalette*sizeof(unsigned char));
-
 	//vado ad inizializzare il vettore che conterrà i simboli dei colori che si trovano dentro la palette
-	simboli = (paletteSimboli*) malloc (coloriPalette * sizeof(paletteSimboli));
+	paletteGlobale = (paletteSimboli*) malloc (coloriPalette * sizeof(paletteSimboli));
 
 	//vado a settare i bit per controllare i colori simili
 	bitPrecisione = 6;
@@ -219,13 +220,13 @@ int CostruzionePaletteGlobale(int coloriPalette){
 	k = 0;
 	j = 0;
 
-	paletteGlobale[k*3] = (colori[k].R) & 0xFF;
-	paletteGlobale[(k*3)+1] = (colori[k].G) & 0xFF;
-	paletteGlobale[(k*3)+2] = (colori[k].B) & 0xFF;
+	paletteGlobale[k].R = (colori[k].R) & 0xFF;
+	paletteGlobale[k].G = (colori[k].G) & 0xFF;
+	paletteGlobale[k].B = (colori[k].B) & 0xFF;
 
 	//vado a copiare all'interno il simbolo del colore che viene inserito nella palette
-	simboli[k].simbolo = (char*) malloc (bitColore * sizeof(char));
-	strcpy(simboli[k].simbolo,colori[k].simbolo);
+	paletteGlobale[k].simbolo = (char*) malloc (bitColore * sizeof(char));
+	strcpy(paletteGlobale[k].simbolo,colori[k].simbolo);
 
 	//aggiungo uno ai colori assegnati all'interno della palette
 	numColoriAssegnati++;
@@ -238,18 +239,18 @@ int CostruzionePaletteGlobale(int coloriPalette){
 			verifica[0] = colori[k].R & 0xFF;
 			verifica[1] = colori[k].G & 0xFF;
 			verifica[2] = colori[k].B & 0xFF;
-			for(j=0;(j<3*coloriPalette && flag == 0);j=j+3){
-				if(((verifica[0] >> bitPrecisione) == (paletteGlobale[j] >> bitPrecisione)) && (((verifica[1] >> bitPrecisione) == (paletteGlobale[j+1] >> bitPrecisione))) && (((verifica[2] >> bitPrecisione) == (paletteGlobale[j+2] >> bitPrecisione)))){
+			for(j=0;(j<coloriPalette && flag == 0);j++){
+				if(((verifica[0] >> bitPrecisione) == (paletteGlobale[j].R >> bitPrecisione)) && (((verifica[1] >> bitPrecisione) == (paletteGlobale[j].G >> bitPrecisione))) && (((verifica[2] >> bitPrecisione) == (paletteGlobale[j].B >> bitPrecisione)))){
 					break;
 				}
 				if(j == indiceColore){
 					//devo scrivere nelle successive posizioni di j
-					paletteGlobale[j+3] = verifica[0]; //R
-					paletteGlobale[j+4] = verifica[1]; //G
-					paletteGlobale[j+5] = verifica[2]; //B
-					simboli[numColoriAssegnati].simbolo = (char*) malloc (bitColore * sizeof(char));
-					strcpy(simboli[numColoriAssegnati].simbolo,colori[k].simbolo);
-					indiceColore = j + 3;
+					paletteGlobale[j+1].R = verifica[0]; //R
+					paletteGlobale[j+1].G = verifica[1]; //G
+					paletteGlobale[j+1].B = verifica[2]; //B
+					paletteGlobale[numColoriAssegnati].simbolo = (char*) malloc (bitColore * sizeof(char));
+					strcpy(paletteGlobale[numColoriAssegnati].simbolo,colori[k].simbolo);
+					indiceColore = j + 1;
 					flag = 1;
 					numColoriAssegnati++;
 				}
@@ -273,10 +274,10 @@ int CostruzionePaletteGlobale(int coloriPalette){
 				verifica[0] = colori[k].R & 0xFF;
 				verifica[1] = colori[k].G & 0xFF;
 				verifica[2] = colori[k].B & 0xFF;
-				for(j=0;j<indiceColore;j=j+3){
+				for(j=0;j<indiceColore;j++){
 					//controllo se il colore l'ho gia inserito all'interno della palette
 					//con questo indice dovrei arrivare all'ultimo valore inserito
-					if((verifica[0] == paletteGlobale[j]) && ((verifica[1] == paletteGlobale[j+1])) && ((verifica[2] == paletteGlobale[j+2]))){
+					if((verifica[0] == paletteGlobale[k].R) && ((verifica[1] == paletteGlobale[k].G)) && ((verifica[2] == paletteGlobale[k].B))){
 						flag = 0;
 						break;
 					}
@@ -286,12 +287,12 @@ int CostruzionePaletteGlobale(int coloriPalette){
 				}
 				if(flag == 1){
 					//se non l'ho inserito lo inserisco alla prima posizione libera in teoria
-					paletteGlobale[indiceColore+3] = colori[k].R & 0xFF;
-					paletteGlobale[indiceColore+4] = colori[k].G & 0xFF;
-					paletteGlobale[indiceColore+5] = colori[k].B & 0xFF;
-					simboli[numColoriAssegnati].simbolo = (char*) malloc (bitColore * sizeof(char));
-					strcpy(simboli[numColoriAssegnati].simbolo,colori[k].simbolo);
-					indiceColore = indiceColore + 3;
+					paletteGlobale[indiceColore+1].R = colori[k].R & 0xFF;
+					paletteGlobale[indiceColore+1].G = colori[k].G & 0xFF;
+					paletteGlobale[indiceColore+1].B = colori[k].B & 0xFF;
+					paletteGlobale[numColoriAssegnati].simbolo = (char*) malloc (bitColore * sizeof(char));
+					strcpy(paletteGlobale[numColoriAssegnati].simbolo,colori[k].simbolo);
+					indiceColore++;
 					numColoriAssegnati++;
 				}
 			}
@@ -305,16 +306,23 @@ int CostruzionePaletteGlobale(int coloriPalette){
 
 	//stampa della palette
 	//stampa in bit 0 e 1 delle tre componenti dei colori
-	printf("\n");
+	/*printf("\n");
 	j=0;
-	for(i=0;i<3*coloriPalette;i++){
-		std::bitset<8> x(paletteGlobale[i]);
+	for(i=0;i<coloriPalette;i++){
+		std::bitset<8> x(paletteGlobale[i].R);
 		std::cout << (x) <<'\n';
-		if(((i+1) % 3) == 0){
-			printf("\n");
-		}
-	}
+		printf("%d\n",int(paletteGlobale[i].R));
+		std::bitset<8> y(paletteGlobale[i].G);
+		std::cout << (y) <<'\n';
+		printf("%d\n",int(paletteGlobale[i].G));
+		std::bitset<8> z(paletteGlobale[i].B);
+		std::cout << (z) <<'\n';
+		printf("%d\n",int(paletteGlobale[i].B));
+		printf("%s\n",paletteGlobale[i].simbolo);
+		printf("\n");
+	}*/
 
+	printf("creazione della palette globale completata\n");
 	getch();
 	return 0;
 }
@@ -322,14 +330,62 @@ int CostruzionePaletteGlobale(int coloriPalette){
 //-------------------------------------------------------------------------------------
 int CostruzioneMatriceImmagineGIF(){
 
-	int i,c=0;
+	int i,c=0,j,flag=0,min,sommaDiff,t=0;
+	int componenteRossa,componentVerde,componenteBlu;
+	char *simbolo;
+	unsigned char pos;
 
-	for(i=0;i<strlen(matriceImmagine);i++){
+	simbolo = (char*) malloc (bitColore * sizeof(char));
+
+	//leggo tutti i caratteri all'interno della matrice dell'immagine XPM
+	for(i=1;i<=strlen(matriceImmagine);i++){
 		//ciclo che prende ogni simbolo dell'immagine e verifica se si trova all'interno della palette
 
+		simbolo[c] = matriceImmagine[i-1];
+		c++;
+
+		if((i % bitColore) == 0){
+			//a questo punto io ho un simbolo e devo andare a recuperare il valore delle sue componenti
+
+			c = 0;
+			for(j=0;(j<numColori && flag == 0);j++){
+				if(strcmp(simbolo,colori[j].simbolo) == 0){
+					flag = 1;
+					componenteRossa = colori[j].R;
+					componentVerde = colori[j].G;
+					componenteBlu = colori[j].B;
+				}
+			}
+			flag = 0;
+
+			//a questo punto abbiamo i valori numerici interi del colore e dobbiamo andare a fare la differenza con i colori all'interno
+			//palette
+			sommaDiff = 0;
+			min = 1000;
+			//scorro la palette
+			for(j=0;j<coloriPalette;j++){
+
+				//è univoco questo conto ?
+				sommaDiff = abs(componenteRossa - int(paletteGlobale[j].R)) + abs(componentVerde - int(paletteGlobale[j].G)) + abs(componenteBlu - int(paletteGlobale[j].B));
+
+				//piu la differenza è minore piu il colore si avvicina all'originale
+				if(sommaDiff < min){
+					min = sommaDiff;
+					pos = j & 0xFF;
+				}
+			}
+
+			//vado a copiare il valore della posizione del colore all'interno della matrice dell'immagine
+			matriceImmagineConvertita[t] = pos;
+			printf("%d\n",int(matriceImmagineConvertita[t]));
+
+			//contatore che mi tiene conto del numero di simboli che ho riconosciuto
+			t++;
+		}
 	}
 
-
+	printf("costruzione matrice immagine GIF completata\n");
+	getch();
 	return 0;
 }
 //-------------------------------------------------------------------------------------
@@ -341,9 +397,10 @@ int LetturaFilePPM(char nomeFile[]){
 	return 0;
 }
 
+//-----------------------------------------------------------------------------------------
 int main(){
 
-	int res, i,k=2,coloriPalette=0,tipoPalette=0;
+	int res, i,k=2,tipoPalette=0,c=0;
 	char *nomeFile,ext[3];
 
 	//di sicuro ci sono modi piu efficaci
@@ -374,31 +431,36 @@ int main(){
 	if(tipoPalette == 1){
 		//costruzione palette globale
 
-		while((coloriPalette != 1) && ((coloriPalette != 2)) && ((coloriPalette != 3)) && ((coloriPalette != 4)) && ((coloriPalette != 5))){
+		while((c != 1) && ((c != 2)) && ((c != 3)) && ((c != 4)) && ((c != 5))){
 			printf("da quanti colori vuoi che la palette sia formata ?\n");
 			printf("1)16\n");
 			printf("2)32\n");
 			printf("3)64\n");
 			printf("4)128\n");
 			printf("5)256\n");
-			scanf("%d",&coloriPalette);
+			scanf("%d",&c);
 		}
 
-		switch(coloriPalette){
+		switch(c){
 		case 1:
-			res |= CostruzionePaletteGlobale(16);
+			coloriPalette = 16;
+			res |= CostruzionePaletteGlobale();
 			break;
 		case 2:
-			res |= CostruzionePaletteGlobale(32);
+			coloriPalette = 32;
+			res |= CostruzionePaletteGlobale();
 			break;
 		case 3:
-			res |= CostruzionePaletteGlobale(64);
+			coloriPalette = 64;
+			res |= CostruzionePaletteGlobale();
 			break;
 		case 4:
-			res |= CostruzionePaletteGlobale(128);
+			coloriPalette = 128;
+			res |= CostruzionePaletteGlobale();
 			break;
 		case 5:
-			res |= CostruzionePaletteGlobale(256);
+			coloriPalette = 256;
+			res |= CostruzionePaletteGlobale();
 			break;
 		}
 
