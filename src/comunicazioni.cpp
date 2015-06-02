@@ -29,12 +29,20 @@ typedef struct{
 	char *simbolo;
 }paletteSimboli;
 
+typedef struct pixelInfo{
+	int R;
+	int G;
+	int B;
+}pixelInfo;
+
 colorVet *colori;
+pixelInfo *pixel, *palette;
 paletteSimboli *paletteGlobale;
 char *matriceImmagine;
 unsigned char *matriceImmagineConvertita;
 int larghezza,altezza,numColori,bitColore,coloriPalette;
 
+//-----------------------------------------------------------------------------------------------------
 /*Al termine di questa funzione abbiamo una lista di colori ordinata con il rispettivo simbolo e occorrenza
  * in più abbiamo una matrice dell'immagine scritta tutta su un vettore
  * e le informazioni riguardanti l'immagine
@@ -182,6 +190,7 @@ int LetturaFileXPM(char nomeFile[]){
 	return 0;
 }
 
+//---------------------------------------------------------------------------------------
 /*
  * in questa funzione andiamo a costruire la palette globale dell'immagine basandoci sulle occorrenze dei vari colori
  * all'interno dell'immagine, e basandoci sul numero di colori con cui ci viene richiesta la palette
@@ -211,7 +220,7 @@ int CostruzionePaletteGlobale(){
 		}
 	}
 
-//----------------------------------------------------------------------------------------------
+
 	//funzionaaaaa
 	//con questa funzione se vogliamo differenziare ancora di piu la palette allora basta aumentare
 	//il numero di bit che controlliamo che non siano uguali
@@ -302,7 +311,6 @@ int CostruzionePaletteGlobale(){
 		}
 	}
 	printf("numColoriAssegnati = %d\n",numColoriAssegnati);
-//------------------------------------------------------------------------------------------------------------
 
 	//stampa della palette
 	//stampa in bit 0 e 1 delle tre componenti dei colori
@@ -377,7 +385,7 @@ int CostruzioneMatriceImmagineGIF(){
 
 			//vado a copiare il valore della posizione del colore all'interno della matrice dell'immagine
 			matriceImmagineConvertita[t] = pos;
-			printf("%d\n",int(matriceImmagineConvertita[t]));
+			//printf("%d\n",int(matriceImmagineConvertita[t]));
 
 			//contatore che mi tiene conto del numero di simboli che ho riconosciuto
 			t++;
@@ -390,14 +398,138 @@ int CostruzioneMatriceImmagineGIF(){
 }
 //-------------------------------------------------------------------------------------
 
-
-
 int LetturaFilePPM(char nomeFile[]){
 
 	return 0;
 }
 
 //-----------------------------------------------------------------------------------------
+
+int scriviGIF(char nomeFile[]) {
+
+	//Dichiaro alcune variabili locali utili
+	int i;
+
+	//Cambio estensione al nome del file
+	nomeFile[strlen(nomeFile) - 3] = 'g';
+	nomeFile[strlen(nomeFile) - 2] = 'i';
+	nomeFile[strlen(nomeFile) - 1] = 'f';
+
+	//Apro il file per scrivere i colori
+	FILE *fout = fopen(nomeFile, "w");
+	if(fout == NULL) {
+		fclose(fout);
+		return -1;
+	}
+
+	//Scrivo larghezza, altezza e numero colori
+	fprintf(fout, "%d %d %d\n", larghezza, altezza, coloriPalette);
+
+	//Scrivo tutta la palette
+	for(i = 0; i < coloriPalette; i++) {
+		fprintf(fout, "%d %d %d\n", paletteGlobale[i].R, paletteGlobale[i].G, paletteGlobale[i].B);
+	}
+	//Scrivo il contenuto dei pixel
+	for(i = 0; i < larghezza * altezza; i++)
+		fprintf(fout, "%u\n", matriceImmagineConvertita[i]);
+
+	//Chiudo il file e ritorno un valore di default
+	fclose(fout);
+	return 0;
+}
+
+//-----------------------------------------------------------------------------------------
+
+int LetturaFileGIF(char nomeFile[]) {
+
+	//Dichiaro alcune variabili utili per la lettura da file
+	FILE *fin;
+	char line[256];
+	int cline = 0, cpixel = 0, ccolori = 0, i;
+
+	//Apro il file per la lettura controllando che non ci siano problemi
+	fin = fopen(nomeFile,"r+");
+	if(fin == NULL) {
+		fclose(fin);
+		return -1;
+	}
+
+	//leggo completamente il file
+	while (!(feof(fin))){
+
+		//leggo una linea dal file
+		fscanf(fin, " %[^\n]", line);
+		cline++;
+
+		//Leggo le informazioni di ogni pixel
+		if(cline > coloriPalette + 1) {
+			matriceImmagineConvertita[cpixel++] = (unsigned char) atoi(line);
+
+		//Leggo le informazioni delle palette
+		} else if(cline > 1 && cline <= coloriPalette + 1){
+			//printf("%s\n", line);
+			palette[ccolori].R = atoi(strtok(line, " "));
+			palette[ccolori].G = atoi(strtok(NULL, " "));
+			palette[ccolori++].B = atoi(strtok(NULL, "\0"));
+
+		//Ricavo le informazioni sull'immagine
+		} else {
+			larghezza = atoi(strtok(line, " "));
+			altezza = atoi(strtok(NULL, " "));
+			//numColori = atoi(strtok(NULL, "\0"));
+			palette = (pixelInfo*) malloc(coloriPalette * sizeof(pixelInfo));
+			matriceImmagineConvertita = (unsigned char*) malloc(larghezza * altezza * sizeof(unsigned char));
+		}
+	}
+
+	//Alloco la struttura dati che contiene tutti i dati dei pixel
+	pixel = (pixelInfo*) malloc (larghezza * altezza * sizeof(pixelInfo));
+
+	//Associo ad ogni pixel il valore ricavato dalla palette
+	for(i = 0; i < larghezza * altezza; i++) {
+		pixel[i].R = palette[(int) matriceImmagineConvertita[i]].R;
+		pixel[i].G = palette[(int) matriceImmagineConvertita[i]].G;
+		pixel[i].B = palette[(int) matriceImmagineConvertita[i]].B;
+	}
+
+	//Chiudo il file e ritorno un valore di default
+	fclose(fin);
+	return 0;
+}
+
+//-----------------------------------------------------------------------------------------
+
+int scriviPPM(char nomeFile[]) {
+
+	//Dichiaro alcune variabili locali utili
+	int i;
+
+	//Cambio estensione al nome del file
+	nomeFile[strlen(nomeFile) - 3] = 'p';
+	nomeFile[strlen(nomeFile) - 2] = 'p';
+	nomeFile[strlen(nomeFile) - 1] = 'm';
+
+	//Apro il file per scrivere i colori
+	FILE *fout = fopen(nomeFile, "w");
+	if(fout == NULL) {
+		fclose(fout);
+		return -1;
+	}
+
+	//Scrivo larghezza, altezza e numero colori
+	fprintf(fout, "P3\n#CREATOR CAMPI ARMARI\n%d %d\n255\n", larghezza, altezza);
+
+	//Scrivo il contenuto dei pixel
+	for(i = 0; i < larghezza * altezza; i++)
+		fprintf(fout, "%d\n%d\n%d\n", pixel[i].R, pixel[i].G, pixel[i].B);
+
+	//Chiudo il file e ritorno un valore di default
+	fclose(fout);
+	return 0;
+}
+
+//-----------------------------------------------------------------------------------------
+
 int main(){
 
 	int res, i,k=2,tipoPalette=0,c=0;
@@ -463,13 +595,25 @@ int main(){
 			res |= CostruzionePaletteGlobale();
 			break;
 		}
-
 	}
 	else if(tipoPalette == 2){
 		//costruzione palette locale
 	}
+	else{
+		//controllo i casi che non entrano in nessuna delle possibilita
+	}
 
 	res |= CostruzioneMatriceImmagineGIF();
+
+	res |= scriviGIF(nomeFile);
+
+	free(matriceImmagineConvertita);
+
+	strcpy(nomeFile,"2.gif");
+	res |= LetturaFileGIF(nomeFile);
+
+	strcpy(nomeFile,"2.gif");
+	res |= scriviPPM(nomeFile);
 
 	if(res < 0){
 		printf("errore\n");
