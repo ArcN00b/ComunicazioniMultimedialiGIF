@@ -63,13 +63,13 @@ int compressoreLZW() {
 	lzw = 1;
 
 	//Alloco lo spazio per inserire la lista di simboli
-	pixelLzw = (unsigned char*) malloc(larghezza * altezza * 2 * sizeof(unsigned char));
+	pixelLzw = (unsigned char*) malloc(larghezza * altezza * sizeof(unsigned char));
 
 	//Inizializzo il dizionario
 	for(i = 0; i < numColori; i++) {
 
 		//Scrivo i simboli che già conosco nel dizionario
-		dizionario[i] = (char*) malloc(2 * sizeof(char));
+		dizionario[i] = (char*) malloc(sizeof(char));
 		itoa(i,dizionario[i], 10);
 	}
 
@@ -83,7 +83,6 @@ int compressoreLZW() {
 		//Cerco se la stringa attuale è presente nel dizionario
 		do {
 			pos = cercaDizionario(temp, fineDizionario);
-
 			//Se temp è presente nel dizionario devo aggiungere a temp un simbolo
 			if(pos != -1) {
 				sprintf(temp,"%s%u", temp, pixelGif[i + c]);
@@ -100,10 +99,10 @@ int compressoreLZW() {
 
 				//Inserisco il codice di output nei pixel LZW a dimensione fissa 8 o 16bit
 				if(fineDizionario < 256)
-					pixelLzw[indiceLzw++] = pos;
+					pixelLzw[indiceLzw++] = fineDizionario;
 				else {
-					pixelLzw[indiceLzw++] = pos >> 8;
-					pixelLzw[indiceLzw++] = pos & 255;
+					pixelLzw[indiceLzw++] = fineDizionario >> 8;
+					pixelLzw[indiceLzw++] = fineDizionario & 255;
 				}
 
 				//Aggiorno la posizione di fine dizionario
@@ -164,13 +163,13 @@ void decompressoreLZW(int indiceLzw) {
 		pos = atoi(temp);
 		prec = pos;
 
-		//Scrivo l'output in base al codice letto attualmente
-		for(j = 0; j < strlen (dizionario[pos]); i++)
-			pixelGif[indiceGif++] = dizionario[pos][i];
-
 		//Aggiungo la stringa composta al dizionario
 		dizionario[fineDizionario] = (char*) malloc((strlen(temp) + 2) * sizeof(char));
 		strcpy(dizionario[fineDizionario++], temp);
+
+		//Scrivo l'output in base al codice letto attualmente
+		for(j = 0; j < strlen (dizionario[pos]); i++)
+			pixelGif[indiceGif++] = dizionario[pos][i];
 
 		//Se ho raggiunto la dimensione massima del dizionario lo resetto
 		if(fineDizionario == 65536)
@@ -560,7 +559,7 @@ int scriviGIF(char nomeFile[], unsigned char daScrivere[], int grandezza) {
 
 int main(){
 
-	int res, i,k=2, grandezzaLzw = 0;
+	int res, i,k=2;
 	char *nomeFile,ext[3];
 
 	//di sicuro ci sono modi piu efficaci
@@ -579,7 +578,7 @@ int main(){
 		//res = LetturaFileXPM(nomeFile);
 	} else if(strcmp(ext,"ppm") == 0) {
 
-		//Eseguo la lettura da file .ppm
+		/*//Eseguo la lettura da file .ppm
 		if(LetturaFilePPM(nomeFile) == 0)
 			printf("Lettura immagine completata\n");
 
@@ -612,7 +611,9 @@ int main(){
 		free(colori);
 		free(palette);
 		free(pixel);
-		free(pixelGif);
+		free(pixelGif);*/
+
+		lzw = 1;
 
 		//Leggo l'immagine gif
 		strcpy(nomeFile,"assassins_creed_syndicate-1280x800.gif");
