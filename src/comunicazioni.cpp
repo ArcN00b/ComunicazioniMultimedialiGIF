@@ -53,8 +53,8 @@ int cercaDizionario(char stringa[], int fineDizionario) {
 
 int compressoreLZW() {
 
-	int i, c, pos, indiceLzw = 0;
-	char temp[1024];
+	int i, c, pos, prec, indiceLzw = 0;
+	char temp[65536];
 	int fineDizionario = numColori;
 
 	printf("Comprimo con LZW\n");
@@ -82,6 +82,7 @@ int compressoreLZW() {
 
 		//Cerco se la stringa attuale è presente nel dizionario
 		do {
+			prec = pos;
 			pos = cercaDizionario(temp, fineDizionario);
 			//Se temp è presente nel dizionario devo aggiungere a temp un simbolo
 			if(pos != -1) {
@@ -95,18 +96,15 @@ int compressoreLZW() {
 
 				//Aggiungo la stringa composta al dizionario
 				dizionario[fineDizionario] = (char*) malloc((strlen(temp) + 1) * sizeof(char));
-				strcpy(dizionario[fineDizionario], temp);
+				strcpy(dizionario[fineDizionario++], temp);
 
 				//Inserisco il codice di output nei pixel LZW a dimensione fissa 8 o 16bit
 				if(fineDizionario < 256)
-					pixelLzw[indiceLzw++] = fineDizionario;
+					pixelLzw[indiceLzw++] = prec;
 				else {
-					pixelLzw[indiceLzw++] = fineDizionario >> 8;
-					pixelLzw[indiceLzw++] = fineDizionario & 255;
+					pixelLzw[indiceLzw++] = prec >> 8;
+					pixelLzw[indiceLzw++] = prec & 255;
 				}
-
-				//Aggiorno la posizione di fine dizionario
-				fineDizionario++;
 			}
 		} while(pos != -1 && i + c < larghezza * altezza);
 
@@ -120,6 +118,13 @@ int compressoreLZW() {
 			i += c - 2;
 	}
 
+	//Potrebbe non essere inserita nell'output l'ultima stringa cercata
+	if(pos != -1) {
+		i -= c + 2;
+		dizionario[fineDizionario] = (char*) malloc((strlen(temp) + 1) * sizeof(char));
+		strcpy(dizionario[fineDizionario], temp);
+	}
+
 	//Ritorno la grandezza del risultato della compressione
 	return indiceLzw;
 }
@@ -128,13 +133,9 @@ void decompressoreLZW(int indiceLzw) {
 
 	int i, pos, prec = -1, indiceGif = 0;
 	unsigned int j;
-	char temp[1024];
 	int fineDizionario = numColori;
 
 	printf("Decomprimo con LZW\n");
-
-	//Alloco lo spazio per inserire la lista di simboli
-	pixelLzw = (unsigned char*) malloc(indiceLzw * sizeof(unsigned char));
 
 	//Inizializzo il dizionario
 	for(i = 0; i < numColori; i++) {
@@ -145,35 +146,38 @@ void decompressoreLZW(int indiceLzw) {
 	}
 
 	//Scorro tutti i pixel dell'immagine
-	for(i = 0; i < indiceLzw; i++) {
+	i = 0;
+	while(i < indiceLzw) {
 
 		//Scrivo in forma di stringa il pixelLzw attuale
 		if(fineDizionario < 256)
-			sprintf(temp,"%u", pixelLzw[i++]);
+			pos = pixelLzw[i++];
 		else {
-			sprintf(temp,"%u", pixelLzw[i++]);
-			sprintf(temp,"%s%u", temp, pixelLzw[i++]);
+			pos = (pixelLzw[i] << 8) + pixelLzw[i + 1];
+			i += 2;
 		}
 
 		//Aggiorno il dizionario aggiungendo il nuovo codice a quello precedente
 		if(prec != -1)
-			sprintf(dizionario[prec], "%s%c", dizionario[prec] , temp[0]);
+			sprintf(dizionario[prec], "%s%c", dizionario[prec], dizionario[pos][0]);
 
-		//Ricavo la posizione dalla stringa appena composta
-		pos = atoi(temp);
+		//Salvo la posizione precedente
 		prec = pos;
 
 		//Aggiungo la stringa composta al dizionario
-		dizionario[fineDizionario] = (char*) malloc((strlen(temp) + 2) * sizeof(char));
-		strcpy(dizionario[fineDizionario++], temp);
+		dizionario[fineDizionario] = (char*) malloc((strlen(dizionario[pos]) + 3) * sizeof(char));
+		strcpy(dizionario[fineDizionario++], dizionario[pos]);
+		printf("%d, %s\n", pos, dizionario[fineDizionario -1]);
 
 		//Scrivo l'output in base al codice letto attualmente
-		for(j = 0; j < strlen (dizionario[pos]); i++)
-			pixelGif[indiceGif++] = dizionario[pos][i];
+		for(j = 0; j < strlen (dizionario[pos]); j++)
+			pixelGif[indiceGif++] = (unsigned char) dizionario[pos][j];
 
 		//Se ho raggiunto la dimensione massima del dizionario lo resetto
-		if(fineDizionario == 65536)
+		if(fineDizionario == 65536) {
 			fineDizionario = numColori;
+			prec = -1;
+		}
 	}
 }
 
@@ -559,7 +563,7 @@ int scriviGIF(char nomeFile[], unsigned char daScrivere[], int grandezza) {
 
 int main(){
 
-	int res, i,k=2;
+	int res, i,k=2, grandezzaLzw;
 	char *nomeFile,ext[3];
 
 	//di sicuro ci sono modi piu efficaci
