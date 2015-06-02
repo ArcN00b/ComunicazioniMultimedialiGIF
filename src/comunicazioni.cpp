@@ -32,8 +32,151 @@ typedef struct colorVet{
 //Dichiaro le variabili globali utilizzate in futuro
 pixelInfo *pixel, *palette;
 colorVet *colori;
-unsigned char *pixelGif;
-int larghezza, altezza, numColori;
+unsigned char *pixelGif, *pixelLzw;
+char *dizionario[65536];
+int larghezza, altezza, numColori, lzw;
+
+int cercaDizionario(char stringa[], int fineDizionario) {
+
+	//Variabile locale utile per cercare nel dizionario
+	int i;
+
+	//Scorro tutto il dizionario controllando che ci sia la stringa
+	for (i = 0; i < fineDizionario; i++) {
+		if(strcmp(stringa, dizionario[i]) == 0)
+			return i;
+	}
+
+	//Se la stringa non viene trovata ritorno -1
+	return -1;
+}
+
+int compressoreLZW() {
+
+	int i, c, pos, indiceLzw = 0;
+	char temp[1024];
+	int fineDizionario = numColori;
+
+	printf("Comprimo con LZW\n");
+
+	//Imposto il flag lzw a true
+	lzw = 1;
+
+	//Alloco lo spazio per inserire la lista di simboli
+	pixelLzw = (unsigned char*) malloc(larghezza * altezza * 2 * sizeof(unsigned char));
+
+	//Inizializzo il dizionario
+	for(i = 0; i < numColori; i++) {
+
+		//Scrivo i simboli che già conosco nel dizionario
+		dizionario[i] = (char*) malloc(2 * sizeof(char));
+		itoa(i,dizionario[i], 10);
+	}
+
+	//Scorro tutti i pixel dell'immagine
+	for(i = 0; i < larghezza * altezza; i++) {
+
+		//Scrivo in forma di stringa il simbolo attuale
+		sprintf(temp,"%u", pixelGif[i]);
+		c = 1;
+
+		//Cerco se la stringa attuale è presente nel dizionario
+		do {
+			pos = cercaDizionario(temp, fineDizionario);
+
+			//Se temp è presente nel dizionario devo aggiungere a temp un simbolo
+			if(pos != -1) {
+				sprintf(temp,"%s%u", temp, pixelGif[i + c]);
+
+				//Conto quante volte eseguo il ciclo per aggiornare correttamente i
+				c++;
+
+			//Altrimenti devo salvare l'indice attuale
+			} else {
+
+				//Aggiungo la stringa composta al dizionario
+				dizionario[fineDizionario] = (char*) malloc((strlen(temp) + 1) * sizeof(char));
+				strcpy(dizionario[fineDizionario], temp);
+
+				//Inserisco il codice di output nei pixel LZW a dimensione fissa 8 o 16bit
+				if(fineDizionario < 256)
+					pixelLzw[indiceLzw++] = pos;
+				else {
+					pixelLzw[indiceLzw++] = pos >> 8;
+					pixelLzw[indiceLzw++] = pos & 255;
+				}
+
+				//Aggiorno la posizione di fine dizionario
+				fineDizionario++;
+			}
+		} while(pos != -1 && i + c < larghezza * altezza);
+
+		//Se ho raggiunto la dimensione massima del dizionario lo resetto
+		if(fineDizionario == 65536) {
+			fineDizionario = numColori;
+		}
+
+		//Se ho eseguito il ciclo almeno due volte devo aggiornare i
+		if(c > 2)
+			i += c - 2;
+	}
+
+	//Ritorno la grandezza del risultato della compressione
+	return indiceLzw;
+}
+
+void decompressoreLZW(int indiceLzw) {
+
+	int i, pos, prec = -1, indiceGif = 0;
+	unsigned int j;
+	char temp[1024];
+	int fineDizionario = numColori;
+
+	printf("Decomprimo con LZW\n");
+
+	//Alloco lo spazio per inserire la lista di simboli
+	pixelLzw = (unsigned char*) malloc(indiceLzw * sizeof(unsigned char));
+
+	//Inizializzo il dizionario
+	for(i = 0; i < numColori; i++) {
+
+		//Scrivo i simboli che già conosco nel dizionario
+		dizionario[i] = (char*) malloc(2 * sizeof(char));
+		itoa(i, dizionario[i], 10);
+	}
+
+	//Scorro tutti i pixel dell'immagine
+	for(i = 0; i < indiceLzw; i++) {
+
+		//Scrivo in forma di stringa il pixelLzw attuale
+		if(fineDizionario < 256)
+			sprintf(temp,"%u", pixelLzw[i++]);
+		else {
+			sprintf(temp,"%u", pixelLzw[i++]);
+			sprintf(temp,"%s%u", temp, pixelLzw[i++]);
+		}
+
+		//Aggiorno il dizionario aggiungendo il nuovo codice a quello precedente
+		if(prec != -1)
+			sprintf(dizionario[prec], "%s%c", dizionario[prec] , temp[0]);
+
+		//Ricavo la posizione dalla stringa appena composta
+		pos = atoi(temp);
+		prec = pos;
+
+		//Scrivo l'output in base al codice letto attualmente
+		for(j = 0; j < strlen (dizionario[pos]); i++)
+			pixelGif[indiceGif++] = dizionario[pos][i];
+
+		//Aggiungo la stringa composta al dizionario
+		dizionario[fineDizionario] = (char*) malloc((strlen(temp) + 2) * sizeof(char));
+		strcpy(dizionario[fineDizionario++], temp);
+
+		//Se ho raggiunto la dimensione massima del dizionario lo resetto
+		if(fineDizionario == 65536)
+			fineDizionario = numColori;
+	}
+}
 
 /*int LetturaFileXPM(char nomeFile[]) {
 
@@ -200,11 +343,14 @@ int LetturaFileGIF(char nomeFile[]) {
 
 		//Leggo le informazioni di ogni pixel
 		if(cline > numColori + 1) {
-			pixelGif[cpixel++] = (unsigned char) atoi(line);
+			if(lzw == 0)
+				pixelGif[cpixel++] = (unsigned char) atoi(line);
+			else
+				pixelLzw[cpixel++]  = (unsigned char) atoi(line);
 
 		//Leggo le informazioni delle palette
 		} else if(cline > 1 && cline <= numColori + 1){
-			printf("%s\n", line);
+			//printf("%s\n", line);
 			palette[ccolori].R = atoi(strtok(line, " "));
 			palette[ccolori].G = atoi(strtok(NULL, " "));
 			palette[ccolori++].B = atoi(strtok(NULL, "\0"));
@@ -213,11 +359,17 @@ int LetturaFileGIF(char nomeFile[]) {
 		} else {
 			larghezza = atoi(strtok(line, " "));
 			altezza = atoi(strtok(NULL, " "));
-			numColori = atoi(strtok(NULL, "\0"));
+			numColori = atoi(strtok(NULL, " "));
+			lzw = atoi(strtok(NULL, "\0"));
 			palette = (pixelInfo*) malloc(numColori * sizeof(pixelInfo));
 			pixelGif = (unsigned char*) malloc(larghezza * altezza * sizeof(unsigned char));
+			pixelLzw = (unsigned char*) malloc(larghezza * altezza * sizeof(unsigned char));
 		}
 	}
+
+	//Decomprimo i pixel se sono stati compressi
+	if (lzw == 1)
+		decompressoreLZW(cline - numColori - 1);
 
 	//Alloco la struttura dati che contiene tutti i dati dei pixel
 	pixel = (pixelInfo*) malloc (larghezza * altezza * sizeof(pixelInfo));
@@ -248,7 +400,7 @@ void compilaVettoreColori() {
 	//Scorro tutti i pixel presenti nell'immagine
 	for(pos = 0; pos < larghezza * altezza; pos++) {
 
-		//Scorro la lista dei colori per trovare se il colore Ã¨ giÃ  presente o meno
+		//Scorro la lista dei colori per trovare se il colore Ã¨ giÃ  presente o meno
 		i = 0;
 		while(i < numColori && colori[i].occorrenza != 0 && !(pixel[pos].R == colori[i].R &&
 				pixel[pos].G == colori[i].G && pixel[pos].B == colori[i].B))
@@ -372,7 +524,7 @@ int scriviPPM(char nomeFile[]) {
 	return 0;
 }
 
-int scriviGIF(char nomeFile[]) {
+int scriviGIF(char nomeFile[], unsigned char daScrivere[], int grandezza) {
 
 	//Dichiaro alcune variabili locali utili
 	int i;
@@ -390,16 +542,16 @@ int scriviGIF(char nomeFile[]) {
 	}
 
 	//Scrivo larghezza, altezza e numero colori
-	fprintf(fout, "%d %d %d\n", larghezza, altezza, numColori);
+	fprintf(fout, "%d %d %d %d\n", larghezza, altezza, numColori, lzw);
 
 	//Scrivo tutta la palette
 	for(i = 0; i < numColori; i++) {
 		fprintf(fout, "%d %d %d\n", palette[i].R, palette[i].G, palette[i].B);
-		printf("%d %d %d\n", palette[i].R, palette[i].G, palette[i].B);
+		//printf("%d %d %d\n", palette[i].R, palette[i].G, palette[i].B);
 	}
 	//Scrivo il contenuto dei pixel
-	for(i = 0; i < larghezza * altezza; i++)
-		fprintf(fout, "%u\n", pixelGif[i]);
+	for(i = 0; i < grandezza; i++)
+		fprintf(fout, "%u\n", daScrivere[i]);
 
 	//Chiudo il file e ritorno un valore di default
 	fclose(fout);
@@ -408,7 +560,7 @@ int scriviGIF(char nomeFile[]) {
 
 int main(){
 
-	int res, i,k=2;
+	int res, i,k=2, grandezzaLzw = 0;
 	char *nomeFile,ext[3];
 
 	//di sicuro ci sono modi piu efficaci
@@ -432,6 +584,7 @@ int main(){
 			printf("Lettura immagine completata\n");
 
 		//Compilo la struttura che contiene la lista dei colori
+		printf("Compilo vettore colori\n");
 		compilaVettoreColori();
 
 		//Scrivo la lista dei colori nel file
@@ -439,11 +592,21 @@ int main(){
 			printf("Scrittura colori completata\n");
 
 		//Creo la palette globale
+		printf("Creo dati gif\n");
 		creaDatiGif(256);
 
+		grandezzaLzw = compressoreLZW();
+
 		//Scrivo l'immagine gif
-		if(scriviGIF(nomeFile) == 0)
-			printf("Scrittura gif avvenuta con successo\n");
+		if(lzw == 1) {
+			if(scriviGIF(nomeFile, pixelLzw, grandezzaLzw) == 0)
+				printf("Scrittura gif lzw avvenuta con successo\n");
+			free(pixelLzw);
+
+		} else {
+			if(scriviGIF(nomeFile, pixelGif, larghezza * altezza) == 0)
+				printf("Scrittura gif avvenuta con successo\n");
+		}
 
 		//Libero le strutture dati
 		free(colori);
@@ -464,11 +627,11 @@ int main(){
 	}
 
 	//scanf("%d",&i);
-	//Libero le strutture precedentemente utilizzate
+	/*//Libero le strutture precedentemente utilizzate
 	free(nomeFile);
 	free(colori);
 	free(palette);
 	free(pixel);
-	free(pixelGif);
+	free(pixelGif);*/
 	return 0;
 }
