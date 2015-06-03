@@ -131,7 +131,7 @@ int compressoreLZW() {
 
 void decompressoreLZW(int indiceLzw) {
 
-	int i, pos, prec = -1, indiceGif = 0;
+	int i, pos, indiceGif = 0;
 	unsigned int j;
 	int fineDizionario = numColori;
 
@@ -149,8 +149,8 @@ void decompressoreLZW(int indiceLzw) {
 	i = 0;
 	while(i < indiceLzw) {
 
-		//Scrivo in forma di stringa il pixelLzw attuale
-		if(fineDizionario < 256)
+		//Ottengo la posizione dell'indice dal pixel lzw attuale
+		if(fineDizionario < 256 - 1)
 			pos = pixelLzw[i++];
 		else {
 			pos = (pixelLzw[i] << 8) + pixelLzw[i + 1];
@@ -158,26 +158,20 @@ void decompressoreLZW(int indiceLzw) {
 		}
 
 		//Aggiorno il dizionario aggiungendo il nuovo codice a quello precedente
-		if(prec != -1)
-			sprintf(dizionario[prec], "%s%c", dizionario[prec], dizionario[pos][0]);
-
-		//Salvo la posizione precedente
-		prec = pos;
-
-		//Aggiungo la stringa composta al dizionario
-		dizionario[fineDizionario] = (char*) malloc((strlen(dizionario[pos]) + 3) * sizeof(char));
-		strcpy(dizionario[fineDizionario++], dizionario[pos]);
-		printf("%d, %s\n", pos, dizionario[fineDizionario -1]);
+		if(fineDizionario != numColori)
+			sprintf(dizionario[fineDizionario - 1], "%s%c", dizionario[fineDizionario - 1], dizionario[pos][0]);
 
 		//Scrivo l'output in base al codice letto attualmente
 		for(j = 0; j < strlen (dizionario[pos]); j++)
 			pixelGif[indiceGif++] = (unsigned char) dizionario[pos][j];
 
+		//Aggiungo la stringa composta al dizionario
+		dizionario[fineDizionario] = (char*) malloc((strlen(dizionario[pos]) + 2) * sizeof(char));
+		strcpy(dizionario[fineDizionario++], dizionario[pos]);
+
 		//Se ho raggiunto la dimensione massima del dizionario lo resetto
-		if(fineDizionario == 65536) {
+		if(fineDizionario == 65536)
 			fineDizionario = numColori;
-			prec = -1;
-		}
 	}
 }
 
@@ -372,7 +366,7 @@ int LetturaFileGIF(char nomeFile[]) {
 
 	//Decomprimo i pixel se sono stati compressi
 	if (lzw == 1)
-		decompressoreLZW(cline - numColori - 1);
+		decompressoreLZW(cpixel - 1);
 
 	//Alloco la struttura dati che contiene tutti i dati dei pixel
 	pixel = (pixelInfo*) malloc (larghezza * altezza * sizeof(pixelInfo));
@@ -582,7 +576,7 @@ int main(){
 		//res = LetturaFileXPM(nomeFile);
 	} else if(strcmp(ext,"ppm") == 0) {
 
-		/*//Eseguo la lettura da file .ppm
+		//Eseguo la lettura da file .ppm
 		if(LetturaFilePPM(nomeFile) == 0)
 			printf("Lettura immagine completata\n");
 
@@ -615,9 +609,7 @@ int main(){
 		free(colori);
 		free(palette);
 		free(pixel);
-		free(pixelGif);*/
-
-		lzw = 1;
+		free(pixelGif);
 
 		//Leggo l'immagine gif
 		strcpy(nomeFile,"assassins_creed_syndicate-1280x800.gif");
