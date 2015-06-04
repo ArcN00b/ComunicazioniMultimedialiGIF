@@ -58,7 +58,7 @@ int LetturaFileXPM(char nomeFile[]){
 
 	FILE *fin;
 	char *line,hexString[2],simboloConf[bitColore];
-	int cline=0,i,k,c=0,j=0,t=0;
+	int cline=0,i,k,c=0,j=0,t=0,o=0,flag = 0;
 
 	fin = fopen(nomeFile,"r+");
 	if(fin == NULL){
@@ -74,7 +74,7 @@ int LetturaFileXPM(char nomeFile[]){
 	while(!(feof(fin))){
 
 		char *str;
-		int t = 0;
+		int t = 0,pos = 0;
 		fscanf(fin, " %[^\n]",line);
 		cline++;
 
@@ -176,21 +176,46 @@ int LetturaFileXPM(char nomeFile[]){
 					c = 0;
 					simboloConf[bitColore] = '\0';
 
-					for(k=0;k<numColori;k++){
+					/*for(k=0;(k<numColori && flag == 0);k++){
 						//è una ricerca per simbolo non per valore non posso fare la dicotomica
 						if(strcmp(simboloConf,colori[k].simbolo) == 0){
 							colori[k].occorrenze++;
+							flag = 1;
+						}
+					}*/
+
+					flag = 0;
+					pos = 0;
+					//ricerca ottimizzata
+					//da controllare se lo riesco a fare bene spacca
+					for(k=bitColore-1;k>=0;k--){
+						flag = 0;
+						for(o=pos;(o<numColori && flag == 0);o += pow(92,k)){
+							if(simboloConf[k] == colori[o].simbolo[k]){
+								flag = 1;
+								pos = o;
+							}
+						}
+						if(k == 0){
+							colori[pos].occorrenze++;
 						}
 					}
 				}
 			}
 		}
-
 		else{
 				//controllo i casi che non rientrano in nessun if
 		}
 	}
 
+	//stampa occorrenze
+	//FILE *occo=fopen("prova1.txt","w+");
+	//int somma = 0;
+	//for(i=0;i<numColori;i++){
+	//	fprintf(occo,"%s: %d\n",colori[i].simbolo,colori[i].occorrenze);
+	//	somma += colori[i].occorrenze;
+	//}
+	//fprintf(occo,"%d\n",somma);
 	printf("lettura del file XPM completata\n");
 	free(line);
 	getch();
@@ -214,7 +239,7 @@ int CostruzionePaletteGlobale(){
 	paletteGlobale = (paletteSimboli*) malloc (coloriPalette * sizeof(paletteSimboli));
 
 	//vado a settare i bit per controllare i colori simili
-	bitPrecisione = 6;
+	bitPrecisione = 4;
 
 	//ordino il vettore che contiene tutti i colori per occorrenze
 	//questa operazione andrebbe fatta al momento dell'inserimento
@@ -227,7 +252,6 @@ int CostruzionePaletteGlobale(){
 			}
 		}
 	}
-
 
 	//funzionaaaaa
 	//con questa funzione se vogliamo differenziare ancora di piu la palette allora basta aumentare
@@ -371,6 +395,9 @@ int CostruzioneMatriceImmagineGIF(){
 					componentVerde = colori[j].G;
 					componenteBlu = colori[j].B;
 				}
+			}
+			if(flag == 0){
+				printf("non trovato\n");
 			}
 			flag = 0;
 
@@ -656,7 +683,7 @@ int ScriviXPM(char nomeFile[]){
 	}
 	for(i=0;i<numColori;i++){
 		simboli[i].simbolo[bitColore] = '\0';
-		printf("%s\n",simboli[i].simbolo);
+		//printf("%s\n",simboli[i].simbolo);
 		fprintf(fout, "\"%s c #",simboli[i].simbolo);
 		DecToHex(palette[i].R);
 		fprintf(fout,"%c%c",hexadecimalNumber[2],hexadecimalNumber[1]);
