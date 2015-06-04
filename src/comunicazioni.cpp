@@ -122,6 +122,7 @@ int LetturaFileXPM(char nomeFile[]){
 
 		else if((cline >= 4) && (cline <= numColori + 3)){
 
+			//leggo la palette
 			colori[cline - 4].simbolo = (char*) malloc (bitColore*sizeof(char));
 			//simbolo colore
 			for(i=0;i<bitColore;i++){
@@ -574,7 +575,6 @@ int DecToHex(long decimalNumber){
 	while(quotient != 0){
 		 temp = quotient % 16;
 
-	  //To convert integer into character
 	  if( temp < 10)
 		   temp =temp + 48;
 	  else
@@ -584,10 +584,6 @@ int DecToHex(long decimalNumber){
 	  i++;
 	  quotient = quotient / 16;
 	}
-
-	//printf("Equivalent hexadecimal value of decimal number %d: ",decimalNumber);
-	//for(j = i -1 ;j> 0;j--)
-	  //printf("%c",hexadecimalNumber[j]);
 
 	return 0;
 }
@@ -649,8 +645,8 @@ int ScriviXPM(char nomeFile[]){
 			if(numSimbolo == 123){
 				numSimbolo = 32;
 			}
-			if(i == bitColore-1){
-				if((j % (int)pow(91,k)) == 0){
+			if((j > 1) || (i == bitColore-1)){
+				if((j % ((int)pow(91,k))) == 0){
 					numSimbolo++;
 				}
 			}
@@ -660,6 +656,7 @@ int ScriviXPM(char nomeFile[]){
 	}
 	for(i=0;i<numColori;i++){
 		simboli[i].simbolo[bitColore] = '\0';
+		printf("%s\n",simboli[i].simbolo);
 		fprintf(fout, "\"%s c #",simboli[i].simbolo);
 		DecToHex(palette[i].R);
 		fprintf(fout,"%c%c",hexadecimalNumber[2],hexadecimalNumber[1]);
@@ -694,7 +691,6 @@ int ScriviXPM(char nomeFile[]){
 		if((i+1) != 1){
 			if(((i+1) % larghezza) == 0){
 				if((i+1) == (altezza*larghezza)){
-					printf("dentro\n");
 					fprintf(fout,"\"");
 				}
 				else{
@@ -706,6 +702,7 @@ int ScriviXPM(char nomeFile[]){
 	}
 	fprintf(fout,"\n};");
 
+	printf("ricostruzione immagine XPM completata\n");
 	getch();
 	fclose(fout);
 	return 0;
@@ -719,9 +716,9 @@ int main(){
 	char *nomeFile,ext[3];
 
 	//di sicuro ci sono modi piu efficaci
-	res = strlen("2.gif");
+	res = strlen("3.xpm");
 	nomeFile = (char*) malloc (res*sizeof(char));
-	strcpy(nomeFile,"2.gif");
+	strcpy(nomeFile,"3.xpm");
 
 	//ciclo che prende l'estensione del file
 	for(i=res-1;i>=res-3;i--){
