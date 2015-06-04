@@ -670,10 +670,14 @@ int ScriviXPM(char nomeFile[]){
 	}
 
 	//stampo la matrice che contiene i colori
+	j = 0;
 	fprintf(fout,"\"");
 	for(i=0;i<larghezza*altezza;i++){
 
 		k = 0;
+		if(j == 1){
+			fprintf(fout,"\"");
+		}
 		//cerco il colore all'interno della palette
 		for(j=0;(j<numColori && k == 0);j++){
 			if((pixel[i].R == palette[j].R) && (pixel[i].G == palette[j].G) && (pixel[i].B == palette[j].B)){
@@ -682,20 +686,21 @@ int ScriviXPM(char nomeFile[]){
 			}
 		}
 
+		j = 0;
 		//simbolo trovato
 		if(k == 1){
 			fprintf(fout,"%s",simboli[pos].simbolo);
 		}
-		if(i != 1 && i != 0){
-			if((i % larghezza) == 0){
-				if(i == (altezza*larghezza)-1){
-					fprintf(fout,"\"\n");
+		if((i+1) != 1){
+			if(((i+1) % larghezza) == 0){
+				if((i+1) == (altezza*larghezza)){
+					printf("dentro\n");
+					fprintf(fout,"\"");
 				}
 				else{
 					fprintf(fout,"\",\n");
-
+					j = 1;
 				}
-				fprintf(fout,"\"");
 			}
 		}
 	}
