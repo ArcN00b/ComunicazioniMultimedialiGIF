@@ -52,11 +52,18 @@ int cercaDizionario(char stringa[], char *dizionario[], int fineDizionario) {
 
 int compressoreLZW() {
 
-	int i, c, pos, prec, indiceLzw = 0;
+	int i, j, c, pos, prec, indiceLzw = 0;
 	char temp[65536], *dizionario[65536];
 	int fineDizionario = numColori;
 
 	printf("Comprimo con LZW\n");
+
+	/*//Apro il file per scrivere i colori
+	FILE *fout = fopen("Dizionario Compressione.txt", "w");
+	if(fout == NULL) {
+		fclose(fout);
+		return -1;
+	}*/
 
 	//Imposto il flag lzw a true
 	lzw = 1;
@@ -70,6 +77,7 @@ int compressoreLZW() {
 		//Scrivo i simboli che già conosco nel dizionario
 		dizionario[i] = (char*) malloc(sizeof(char));
 		itoa(i,dizionario[i], 10);
+		//fprintf(fout, "%d, dizionario %s\n", i, dizionario[i]);
 	}
 
 	//Scorro tutti i pixel dell'immagine
@@ -94,7 +102,8 @@ int compressoreLZW() {
 			} else {
 
 				//Aggiungo la stringa composta al dizionario
-				dizionario[fineDizionario] = (char*) malloc((strlen(temp) + 1) * sizeof(char));
+				dizionario[fineDizionario] = (char*) malloc((strlen(temp) + 2) * sizeof(char));
+				//fprintf(fout, "%d, dizionario %s\n", c1++, temp);
 				strcpy(dizionario[fineDizionario++], temp);
 
 				//Inserisco il codice di output nei pixel LZW a dimensione fissa 8 o 16bit
@@ -110,6 +119,19 @@ int compressoreLZW() {
 		//Se ho raggiunto la dimensione massima del dizionario lo resetto
 		if(fineDizionario == 65536) {
 			fineDizionario = numColori;
+
+			//Azzero il dizionario
+			for(j = 0; j < 65536; j++)
+				free(dizionario[j]);
+
+			//Inizializzo il dizionario
+			for(j = 0; j < numColori; j++) {
+
+				//Scrivo i simboli che già conosco nel dizionario
+				dizionario[j] = (char*) malloc(3 * sizeof(char));
+				itoa(j,dizionario[j], 10);
+				//fprintf(fout, "%d, dizionario %s\n", j, dizionario[j]);
+			}
 		}
 
 		//Se ho eseguito il ciclo almeno due volte devo aggiornare i
@@ -124,6 +146,9 @@ int compressoreLZW() {
 		strcpy(dizionario[fineDizionario], temp);
 	}
 
+	//Chiudo il file e ritorno un valore di default
+	//fclose(fout);
+
 	//Ritorno la grandezza del risultato della compressione
 	return indiceLzw;
 }
@@ -136,12 +161,19 @@ void decompressoreLZW(int indiceLzw) {
 
 	printf("Decomprimo con LZW\n");
 
+	/*//Apro il file per scrivere i colori
+	FILE *fout = fopen("Dizionario Decompressione.txt", "w");
+	if(fout == NULL) {
+		fclose(fout);
+	}*/
+
 	//Inizializzo il dizionario
 	for(j = 0; j < numColori; j++) {
 
 		//Scrivo i simboli che già conosco nel dizionario
 		dizionario[j] = (int*) malloc(sizeof(int));
 		dizionario[j][0] = j;
+		//fprintf(fout, "%d, dizionario %d\n", j, dizionario[j][0]);
 		numCifre[j] = 1;
 	}
 
@@ -175,6 +207,8 @@ void decompressoreLZW(int indiceLzw) {
 		for(j = 0; j < numCifre[pos]; j++)
 			dizionario[fineDizionario][j] = dizionario[pos][j];
 
+		//fprintf(fout, "%d, dizionario ", fineDizionario - 1);
+
 		/*printf("line = %d - pos = %d - diziPos = ", i, pos);
 		for(j = 0; j < numCifre[pos]; j++)
 			printf("%d",dizionario[pos][j]);
@@ -184,12 +218,12 @@ void decompressoreLZW(int indiceLzw) {
 		for(j = 0; j < numCifre[fineDizionario]; j++)
 			printf("%d",dizionario[fineDizionario][j]);
 
-		printf(" - dizfin - 1 = ");
+		printf(" - dizfinO = ");*/
 
-		for(j = 0; j < numCifre[fineDizionario - 1]; j++)
-			printf("%d",dizionario[fineDizionario - 1][j]);
+		/*for(j = 0; j < numCifre[fineDizionario - 1]; j++)
+			fprintf(fout,"%d",dizionario[fineDizionario - 1][j]);
 
-		printf("\n");
+		fprintf(fout, "\n");
 
 		/*if(i % 10 == 0)
 			scanf("%d", &j);*/
@@ -217,6 +251,9 @@ void decompressoreLZW(int indiceLzw) {
 			}
 		}
 	}
+
+	//Chiudo il file e ritorno un valore di default
+	//fclose(fout);
 }
 
 /*int LetturaFileXPM(char nomeFile[]) {
@@ -620,7 +657,7 @@ int main(){
 		//res = LetturaFileXPM(nomeFile);
 	} else if(strcmp(ext,"ppm") == 0) {
 
-		/*//Eseguo la lettura da file .ppm
+		//Eseguo la lettura da file .ppm
 		if(LetturaFilePPM(nomeFile) == 0)
 			printf("Lettura immagine completata\n");
 
@@ -653,7 +690,7 @@ int main(){
 		free(colori);
 		free(palette);
 		free(pixel);
-		free(pixelGif);*/
+		free(pixelGif);
 
 		//Leggo l'immagine gif
 		strcpy(nomeFile,"assassins_creed_syndicate-1280x800.gif");
