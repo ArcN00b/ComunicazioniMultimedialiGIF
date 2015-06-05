@@ -133,12 +133,14 @@ int LetturaFileXPM(char nomeFile[]){
 
 			str = (char*) malloc (6*sizeof(char));
 			for(i=0;i<strlen(line);i++){
-				if((i > 6) && (i < 13)){
+				//printf("%d\n",line[i]);
+				if((i > (bitColore + 4)) && (i < (bitColore + 4 + 7))){
 					str[t] = line[i];
 					t++;
 				}
 			}
 
+			//getch();
 			//prendo le tre componenti RGB e le porto in decimale
 			hexString[0] = str[0];
 			hexString[1] = str[1];
@@ -239,7 +241,7 @@ int CostruzionePaletteGlobale(){
 	paletteGlobale = (paletteSimboli*) malloc (coloriPalette * sizeof(paletteSimboli));
 
 	//vado a settare i bit per controllare i colori simili
-	bitPrecisione = 4;
+	bitPrecisione = 6;
 
 	//ordino il vettore che contiene tutti i colori per occorrenze
 	//questa operazione andrebbe fatta al momento dell'inserimento
@@ -251,6 +253,10 @@ int CostruzionePaletteGlobale(){
 				colori[j] = scambio;
 			}
 		}
+	}
+
+	for(i=0;i<coloriPalette;i++){
+		printf("R: %d G: %d B: %d\n",colori[i].R,colori[i].G,colori[i].B);
 	}
 
 	//funzionaaaaa
@@ -467,9 +473,9 @@ int ScriviGIF(char nomeFile[]) {
 	}
 
 	//Scrivo il contenuto dei pixel
-	for(i = 0; i < larghezza * altezza; i++)
+	for(i = 0; i < larghezza * altezza; i++){
 		fprintf(fout, "%u\n", matriceImmagineConvertita[i]);
-
+	}
 	//Chiudo il file e ritorno un valore di default
 	fclose(fout);
 	return 0;
@@ -685,11 +691,29 @@ int ScriviXPM(char nomeFile[]){
 		simboli[i].simbolo[bitColore] = '\0';
 		//printf("%s\n",simboli[i].simbolo);
 		fprintf(fout, "\"%s c #",simboli[i].simbolo);
-		DecToHex(palette[i].R);
+		if(palette[i].R == 0){
+			hexadecimalNumber[2] = 48;
+			hexadecimalNumber[1] = 48;
+		}
+		else{
+			DecToHex(palette[i].R);
+		}
 		fprintf(fout,"%c%c",hexadecimalNumber[2],hexadecimalNumber[1]);
-		DecToHex(palette[i].G);
+		if(palette[i].G == 0){
+			hexadecimalNumber[2] = 48;
+			hexadecimalNumber[1] = 48;
+		}
+		else{
+			DecToHex(palette[i].G);
+		}
 		fprintf(fout,"%c%c",hexadecimalNumber[2],hexadecimalNumber[1]);
-		DecToHex(palette[i].B);
+		if(palette[i].B == 0){
+			hexadecimalNumber[2] = 48;
+			hexadecimalNumber[1] = 48;
+		}
+		else{
+			DecToHex(palette[i].B);
+		}
 		fprintf(fout,"%c%c\",\n",hexadecimalNumber[2],hexadecimalNumber[1]);
 	}
 
@@ -743,9 +767,9 @@ int main(){
 	char *nomeFile,ext[3];
 
 	//di sicuro ci sono modi piu efficaci
-	res = strlen("3.xpm");
+	res = strlen("3.gif");
 	nomeFile = (char*) malloc (res*sizeof(char));
-	strcpy(nomeFile,"3.xpm");
+	strcpy(nomeFile,"3.gif");
 
 	//ciclo che prende l'estensione del file
 	for(i=res-1;i>=res-3;i--){
