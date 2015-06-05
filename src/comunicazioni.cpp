@@ -35,18 +35,6 @@ colorVet *colori;
 unsigned char *pixelGif, *pixelLzw;
 int larghezza, altezza, numColori, lzw;
 
-//Funzione che copia completamente arg2 all'interno di arg1
-void intcpy(int *arg1, int *arg2, int num) {
-
-	//Dichiaro una variabile per scorrere gli argomenti
-	int i;
-
-	//Copio cella per cella del secondo argomento nel primo
-	for(i = 0; i <= num; i++) {
-		arg1[i] = arg2[i];
-	}
-}
-
 int cercaDizionario(char stringa[], char *dizionario[], int fineDizionario) {
 
 	//Variabile locale utile per cercare nel dizionario
@@ -149,12 +137,12 @@ void decompressoreLZW(int indiceLzw) {
 	printf("Decomprimo con LZW\n");
 
 	//Inizializzo il dizionario
-	for(i = 0; i < numColori; i++) {
+	for(j = 0; j < numColori; j++) {
 
 		//Scrivo i simboli che già conosco nel dizionario
-		dizionario[i] = (int*) malloc(sizeof(int));
-		dizionario[i][0] = i;
-		numCifre[i] = 1;
+		dizionario[j] = (int*) malloc(sizeof(int));
+		dizionario[j][0] = j;
+		numCifre[j] = 1;
 	}
 
 	//Scorro tutti i pixel dell'immagine
@@ -171,31 +159,21 @@ void decompressoreLZW(int indiceLzw) {
 
 		//Aggiorno il dizionario aggiungendo il nuovo codice a quello precedente
 		if(fineDizionario != numColori) {
-			dizionario[fineDizionario - 1][numCifre[fineDizionario]] = dizionario[pos][0];
+			dizionario[fineDizionario - 1][numCifre[fineDizionario - 1]] = dizionario[pos][0];
 			numCifre[fineDizionario -1]++;
 		}
 
 		//Scrivo l'output in base al codice letto attualmente
-		for(j = 0; j < numCifre[pos]; j++)
-			pixelGif[indiceGif++] = (unsigned char) dizionario[pos][j];
+		for(j = 0; j < numCifre[pos]; j++) {
+			pixelGif[indiceGif] = (unsigned char) dizionario[pos][j];
+			indiceGif++;
+		}
 
 		//Aggiungo la stringa composta al dizionario
 		dizionario[fineDizionario] = (int*) malloc((numCifre[pos] + 3) * sizeof(int));
 		numCifre[fineDizionario] = numCifre[pos];
 		for(j = 0; j < numCifre[pos]; j++)
-			dizionario[fineDizionario][j] =  dizionario[pos][j];
-
-		//Aggiorno l'indice di fine dizionario
-		fineDizionario++;
-
-		//Se ho raggiunto la dimensione massima del dizionario lo resetto
-		if(fineDizionario == 65536) {
-			fineDizionario = numColori;
-			for(j = 256; j < 65536; j++){
-				free(dizionario[j]);
-				numCifre[j] = 0;
-			}
-		}
+			dizionario[fineDizionario][j] = dizionario[pos][j];
 
 		/*printf("line = %d - pos = %d - diziPos = ", i, pos);
 		for(j = 0; j < numCifre[pos]; j++)
@@ -203,10 +181,41 @@ void decompressoreLZW(int indiceLzw) {
 
 		printf(" - dizfin = ");
 
+		for(j = 0; j < numCifre[fineDizionario]; j++)
+			printf("%d",dizionario[fineDizionario][j]);
+
+		printf(" - dizfin - 1 = ");
+
 		for(j = 0; j < numCifre[fineDizionario - 1]; j++)
 			printf("%d",dizionario[fineDizionario - 1][j]);
 
-		printf("\n");*/
+		printf("\n");
+
+		/*if(i % 10 == 0)
+			scanf("%d", &j);*/
+
+		//Aggiorno l'indice di fine dizionario
+		fineDizionario++;
+
+		//Se ho raggiunto la dimensione massima del dizionario lo resetto
+		if(fineDizionario == 65536) {
+			fineDizionario = numColori;
+
+			//Azzero il dizionario
+			for(j = 0; j < 65536; j++){
+				free(dizionario[j]);
+				numCifre[j] = 0;
+			}
+
+			//Inizializzo il dizionario
+			for(j = 0; j < numColori; j++) {
+
+				//Scrivo i simboli che già conosco nel dizionario
+				dizionario[j] = (int*) malloc(sizeof(int));
+				dizionario[j][0] = j;
+				numCifre[j] = 1;
+			}
+		}
 	}
 }
 
