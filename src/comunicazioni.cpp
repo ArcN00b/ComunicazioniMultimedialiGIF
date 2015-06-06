@@ -78,13 +78,6 @@ int compressoreLZW() {
 
 	printf("Comprimo con LZW\n");
 
-	/*//Apro il file per scrivere i colori
-	FILE *fout = fopen("Dizionario Compressione.txt", "w");
-	if(fout == NULL) {
-		fclose(fout);
-		return -1;
-	}*/
-
 	//Imposto il flag lzw a true
 	lzw = 1;
 
@@ -98,7 +91,6 @@ int compressoreLZW() {
 		dizionario[j] = (int*) malloc(2 * sizeof(int));
 		dizionario[j][0] = j;
 		dizionario[j][1] = -1;
-		//fprintf(fout, "%d, dizionario %d\n", j, dizionario[j][0]);
 	}
 
 	//Scorro tutti i pixel dell'immagine
@@ -127,7 +119,6 @@ int compressoreLZW() {
 
 				//Aggiungo la stringa composta al dizionario
 				dizionario[fineDizionario] = (int*) malloc((c + 2) * sizeof(int));
-				//fprintf(fout, "%d, dizionario %s\n", c1++, temp);
 				for(j = 0; j <= c; j++)
 					dizionario[fineDizionario][j] = temp[j];
 
@@ -159,7 +150,6 @@ int compressoreLZW() {
 				dizionario[j] = (int*) malloc(2 * sizeof(int));
 				dizionario[j][0] = j;
 				dizionario[j][1] = -1;
-				//fprintf(fout, "%d, dizionario %d\n", j, dizionario[j][0]);
 			}
 		}
 
@@ -172,13 +162,9 @@ int compressoreLZW() {
 	if(pos != -1) {
 		//Aggiungo la stringa composta al dizionario
 		dizionario[fineDizionario] = (int*) malloc((c + 2) * sizeof(int));
-		//fprintf(fout, "%d, dizionario %s\n", c1++, temp);
 		for(j = 0; j <= c; j++)
 			dizionario[fineDizionario][j] = dizionario[pos][j];
 	}
-
-	//Chiudo il file e ritorno un valore di default
-	//fclose(fout);
 
 	//Ritorno la grandezza del risultato della compressione
 	return indiceLzw;
@@ -192,19 +178,12 @@ void decompressoreLZW(int indiceLzw) {
 
 	printf("Decomprimo con LZW\n");
 
-	/*//Apro il file per scrivere i colori
-	FILE *fout = fopen("Dizionario Decompressione.txt", "w");
-	if(fout == NULL) {
-		fclose(fout);
-	}*/
-
 	//Inizializzo il dizionario
 	for(j = 0; j < numColori; j++) {
 
 		//Scrivo i simboli che già conosco nel dizionario
 		dizionario[j] = (int*) malloc(sizeof(int));
 		dizionario[j][0] = j;
-		//fprintf(fout, "%d, dizionario %d\n", j, dizionario[j][0]);
 		numCifre[j] = 1;
 	}
 
@@ -238,27 +217,6 @@ void decompressoreLZW(int indiceLzw) {
 		for(j = 0; j < numCifre[pos]; j++)
 			dizionario[fineDizionario][j] = dizionario[pos][j];
 
-		//fprintf(fout, "%d, dizionario ", fineDizionario - 1);
-
-		/*printf("line = %d - pos = %d - diziPos = ", i, pos);
-		for(j = 0; j < numCifre[pos]; j++)
-			printf("%d",dizionario[pos][j]);
-
-		printf(" - dizfin = ");
-
-		for(j = 0; j < numCifre[fineDizionario]; j++)
-			printf("%d",dizionario[fineDizionario][j]);
-
-		printf(" - dizfinO = ");*/
-
-		/*for(j = 0; j < numCifre[fineDizionario - 1]; j++)
-			fprintf(fout,"%d",dizionario[fineDizionario - 1][j]);
-
-		fprintf(fout, "\n");
-
-		/*if(i % 10 == 0)
-			scanf("%d", &j);*/
-
 		//Aggiorno l'indice di fine dizionario
 		fineDizionario++;
 
@@ -282,9 +240,6 @@ void decompressoreLZW(int indiceLzw) {
 			}
 		}
 	}
-
-	//Chiudo il file e ritorno un valore di default
-	//fclose(fout);
 }
 
 /*int LetturaFileXPM(char nomeFile[]) {
