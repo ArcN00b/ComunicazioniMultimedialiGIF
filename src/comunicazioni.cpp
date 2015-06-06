@@ -11,7 +11,9 @@
 #include<stdlib.h>
 #include<string>
 #include<conio.h>
-//#include<iostream>
+#include<bitset>
+#include<iostream>
+#include<math.h>
 
 //Struttura in cui vengono inseriti i valori dei pixelPPM trovati
 typedef struct pixelInfo{
@@ -345,19 +347,21 @@ int LetturaFileXPM(char nomeFile[]) {
 
 			//il vettore che contiene tutta l'immagine è scritto riga per riga
 			c = 0;
-			for(i=1;i<(strlen(line) - 2);i++){
+			for(i = 1; i < strlen(line) - 2; i++){
 
 				//c è l'indice che mi dice quando sono stati salvati due simboli, quindi
 				//quando posso prendere i due simboli per controllare l'occorrenza
 				c++;
+
 				//copio un carattere del simbolo all'interno della matrice
-				matriceImmagine[j] = line[i];
+				pixelXpm[j] = line[i];
+
 				//j è l'indice con cui vado a salvari simboli nella matrice
 				j++;
 				if(c == bitColore){
 					c = 0;
-					for(t=bitColore-1;t>=0;t--){
-						simboloConf[c] = line[i-t];
+					for(t = bitColore - 1; t >= 0; t--){
+						simboloConf[c] = line[i - t];
 						c++;
 					}
 					c = 0;
@@ -375,9 +379,9 @@ int LetturaFileXPM(char nomeFile[]) {
 					pos = 0;
 					//ricerca ottimizzata
 					//da controllare se lo riesco a fare bene spacca
-					for(k=bitColore-1;k>=0;k--){
+					for(k = bitColore - 1; k >= 0; k--){
 						flag = 0;
-						for(o=pos;(o<numColori && flag == 0);o += pow(92,k)){
+						for(o = pos; o < numColori && flag == 0; o += pow(92,k)){
 							if(simboloConf[k] == colori[o].simbolo[k]){
 								flag = 1;
 								pos = o;
@@ -403,9 +407,7 @@ int LetturaFileXPM(char nomeFile[]) {
 	//	somma += colori[i].occorrenze;
 	//}
 	//fprintf(occo,"%d\n",somma);
-	printf("lettura del file XPM completata\n");
 	free(line);
-	getch();
 	fclose(fin);
 	return 0;
 }
