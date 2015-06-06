@@ -35,15 +35,35 @@ colorVet *colori;
 unsigned char *pixelGif, *pixelLzw;
 int larghezza, altezza, numColori, lzw;
 
-int cercaDizionario(char stringa[], char *dizionario[], int fineDizionario) {
+int cercaDizionario(int attuale[], int *dizionario[], int fineDizionario) {
 
 	//Variabile locale utile per cercare nel dizionario
-	int i;
+	int i = 0, j, f;
 
 	//Scorro tutto il dizionario controllando che ci sia la stringa
-	for (i = 0; i < fineDizionario; i++) {
-		if(strcmp(stringa, dizionario[i]) == 0)
+	while(i < fineDizionario) {
+
+		//Assegno i valori alle variabili di controllo della ricerca
+		j = -1;
+		f = 0;
+
+		do {
+
+			//Aggiorno j
+			j++;
+
+			//Controllo se ci sono delle differenze
+			if(attuale[j] != dizionario[i][j])
+				f = 1;
+
+		} while(f == 0 && attuale[j] != -1 && dizionario[i][j] != -1);
+
+		//Controllo che i vettori confrontati abbiano la stessa lunghezza
+		if(attuale[j] == dizionario[i][j])
 			return i;
+
+		//Aggiorno i
+		i++;
 	}
 
 	//Se la stringa non viene trovata ritorno -1
@@ -53,7 +73,7 @@ int cercaDizionario(char stringa[], char *dizionario[], int fineDizionario) {
 int compressoreLZW() {
 
 	int i, j, c, pos, prec, indiceLzw = 0;
-	char temp[65536], *dizionario[65536];
+	int temp[65536], *dizionario[65536];
 	int fineDizionario = numColori;
 
 	printf("Comprimo con LZW\n");
@@ -72,28 +92,32 @@ int compressoreLZW() {
 	pixelLzw = (unsigned char*) malloc(larghezza * altezza * sizeof(unsigned char));
 
 	//Inizializzo il dizionario
-	for(i = 0; i < numColori; i++) {
+	for(j = 0; j < numColori; j++) {
 
 		//Scrivo i simboli che già conosco nel dizionario
-		dizionario[i] = (char*) malloc(sizeof(char));
-		itoa(i,dizionario[i], 10);
-		//fprintf(fout, "%d, dizionario %s\n", i, dizionario[i]);
+		dizionario[j] = (int*) malloc(2 * sizeof(int));
+		dizionario[j][0] = j;
+		dizionario[j][1] = -1;
+		//fprintf(fout, "%d, dizionario %d\n", j, dizionario[j][0]);
 	}
 
 	//Scorro tutti i pixel dell'immagine
 	for(i = 0; i < larghezza * altezza; i++) {
 
 		//Scrivo in forma di stringa il simbolo attuale
-		sprintf(temp,"%u", pixelGif[i]);
+		temp[0] = pixelGif[i];
+		temp[1] = -1;
 		c = 1;
 
 		//Cerco se la stringa attuale è presente nel dizionario
 		do {
 			prec = pos;
 			pos = cercaDizionario(temp, dizionario, fineDizionario);
+
 			//Se temp è presente nel dizionario devo aggiungere a temp un simbolo
 			if(pos != -1) {
-				sprintf(temp,"%s%u", temp, pixelGif[i + c]);
+				temp[c] = pixelGif[i + c];
+				temp[c + 1] = -1;
 
 				//Conto quante volte eseguo il ciclo per aggiornare correttamente i
 				c++;
@@ -102,9 +126,10 @@ int compressoreLZW() {
 			} else {
 
 				//Aggiungo la stringa composta al dizionario
-				dizionario[fineDizionario] = (char*) malloc((strlen(temp) + 2) * sizeof(char));
+				dizionario[fineDizionario] = (int*) malloc((c + 2) * sizeof(int));
 				//fprintf(fout, "%d, dizionario %s\n", c1++, temp);
-				strcpy(dizionario[fineDizionario++], temp);
+				for(j = 0; j <= c; j++)
+					dizionario[fineDizionario][j] = temp[j];
 
 				//Inserisco il codice di output nei pixel LZW a dimensione fissa 8 o 16bit
 				if(fineDizionario < 256)
@@ -115,6 +140,9 @@ int compressoreLZW() {
 				}
 			}
 		} while(pos != -1 && i + c < larghezza * altezza);
+
+		//Aggiorno la fine del dizionario
+		fineDizionario++;
 
 		//Se ho raggiunto la dimensione massima del dizionario lo resetto
 		if(fineDizionario == 65536) {
@@ -128,9 +156,10 @@ int compressoreLZW() {
 			for(j = 0; j < numColori; j++) {
 
 				//Scrivo i simboli che già conosco nel dizionario
-				dizionario[j] = (char*) malloc(3 * sizeof(char));
-				itoa(j,dizionario[j], 10);
-				//fprintf(fout, "%d, dizionario %s\n", j, dizionario[j]);
+				dizionario[j] = (int*) malloc(2 * sizeof(int));
+				dizionario[j][0] = j;
+				dizionario[j][1] = -1;
+				//fprintf(fout, "%d, dizionario %d\n", j, dizionario[j][0]);
 			}
 		}
 
@@ -141,9 +170,11 @@ int compressoreLZW() {
 
 	//Potrebbe non essere inserita nell'output l'ultima stringa cercata
 	if(pos != -1) {
-		i -= c + 2;
-		dizionario[fineDizionario] = (char*) malloc((strlen(temp) + 1) * sizeof(char));
-		strcpy(dizionario[fineDizionario], temp);
+		//Aggiungo la stringa composta al dizionario
+		dizionario[fineDizionario] = (int*) malloc((c + 2) * sizeof(int));
+		//fprintf(fout, "%d, dizionario %s\n", c1++, temp);
+		for(j = 0; j <= c; j++)
+			dizionario[fineDizionario][j] = dizionario[pos][j];
 	}
 
 	//Chiudo il file e ritorno un valore di default
