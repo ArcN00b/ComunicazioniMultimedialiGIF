@@ -502,9 +502,13 @@ int LetturaFileGIF(char nomeFile[]) {
 	//Dichiaro alcune variabili utili per la lettura da file
 	FILE *fin;
 	char line[256];
-	int cline = 0, cpixel = 0, ccolori = 0, i = 0, c[16], selettore = 0;
+	int cline = 0, ccolori = 0, i, c[16], selettore = 0;
 	coloriPalette = 256; // temporaneo
 	std::string::size_type sz = 0;
+
+	//Inizializzo il contatore della lunghezza
+	for(i = 0; i < numPalette * numPalette; i++)
+		lunghezzaPixel[i] = 0;
 
 	//Apro il file per la lettura controllando che non ci siano problemi
 	fin = fopen(nomeFile,"r+");
@@ -522,18 +526,16 @@ int LetturaFileGIF(char nomeFile[]) {
 
 		//Se è presente il separatore aggiorno gli indici
 		if(line[0] == ',') {
-			lunghezzaPixel[i] = cpixel;
 			i++;
 			cline = 1;
-			cpixel = 0;
 			ccolori = 0;
 
 			//Leggo le informazioni di ogni pixelPPM
 		} else if(cline > coloriPalette + 1) {
 			if(lzw == 0)
-				pixelGif[i][cpixel++] = (unsigned char) atoi(line);
+				pixelGif[i][lunghezzaPixel[i]++] = (unsigned char) atoi(line);
 			else
-				pixelLzw[i][cpixel++]  = (unsigned char) atoi(line);
+				pixelLzw[i][lunghezzaPixel[i]++]  = (unsigned char) atoi(line);
 
 		//Leggo le informazioni delle palette
 		} else if(cline > 1 && cline <= coloriPalette + 1){
