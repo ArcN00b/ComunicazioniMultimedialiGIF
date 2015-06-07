@@ -11,9 +11,9 @@
 #include<stdlib.h>
 #include<string>
 #include<conio.h>
-#include<bitset>
-#include<iostream>
-#include<math.h>
+//#include<bitset>
+//#include<iostream>
+//#include<math.h>
 
 //Struttura in cui vengono inseriti i valori dei pixelPPM trovati
 typedef struct pixelInfo{
@@ -43,23 +43,23 @@ int lunghezzaPixel[16];
 //-----------------------------------------------------------------------------------------------------
 /* Funzione che trova sceglie la palette locale da associare al pixel indicato dall'indice
  */
-int selezionaPalette(int indice) {
+int selezionaPalette(int indice, int selettore) {
 
 	//Se la palette è una unica non devo aggiornare l'indice
 	if(numPalette == 1 || indice == 0)
-		return indice;
+		return selettore;
 
 	//Alcuni controlli che identificano il settore giusto
 	if(indice % int(larghezza / numPalette) == 0 && indice % larghezza != 0)
-		indice ++;
+		selettore ++;
 	if(indice % larghezza == 0)
-		indice -= numPalette;
+		selettore -= numPalette + 1;
 	if((indice % (altezza / numPalette) * larghezza)
 		&& (indice < (int(altezza / numPalette) * numPalette * int(larghezza / numPalette) * numPalette)))
-		indice += numPalette;
+		selettore += numPalette;
 
 	//ritorno la posizione trovata
-	return indice;
+	return selettore;
 }
 
 //-----------------------------------------------------------------------------------------------------
@@ -502,7 +502,7 @@ int LetturaFileGIF(char nomeFile[]) {
 	//Dichiaro alcune variabili utili per la lettura da file
 	FILE *fin;
 	char line[256];
-	int cline = 0, cpixel = 0, ccolori = 0, i = 0, c[16];
+	int cline = 0, cpixel = 0, ccolori = 0, i = 0, c[16], selettore = 0;
 	coloriPalette = 256; // temporaneo
 	std::string::size_type sz = 0;
 
@@ -548,15 +548,18 @@ int LetturaFileGIF(char nomeFile[]) {
 			coloriPalette = atoi(strtok(NULL, " "));
 			numPalette = atoi(strtok(NULL, " "));
 			lzw = atoi(strtok(NULL, "\0"));
-			palette[i] = (pixelInfo*) malloc(coloriPalette * sizeof(pixelInfo));
-			pixelGif[i] = (unsigned char*) malloc(larghezza * altezza * sizeof(unsigned char));
+			for(i = 0; i < numPalette * numPalette; i++) {
+				palette[i] = (pixelInfo*) malloc(coloriPalette * sizeof(pixelInfo));
+				pixelGif[i] = (unsigned char*) malloc(larghezza * altezza * sizeof(unsigned char));
+				pixelLzw[i] = (unsigned char*) malloc(larghezza * altezza * sizeof(unsigned char));
+			}
+			i = 0;
 		}
 	}
 
 	//Decomprimo i pixelPPM se sono stati compressi
 	if (lzw == 1) {
 		for(i = 0; i < numPalette * numPalette; i++) {
-			pixelLzw[i] = (unsigned char*) malloc(larghezza * altezza * sizeof(unsigned char));
 			lunghezzaPixel[i] = decompressoreLZW(lunghezzaPixel[i], i);
 		}
 	}
@@ -570,11 +573,13 @@ int LetturaFileGIF(char nomeFile[]) {
 
 	//Associo ad ogni pixelPPM il valore ricavato dalla palette
 	for(i = 0; i < larghezza * altezza; i++) {
-		printf("%d",c[selezionaPalette(i)]);
-		pixelPPM[i].R = palette[selezionaPalette(i)][(int) pixelGif[selezionaPalette(i)][c[selezionaPalette(i)]]].R;
-		pixelPPM[i].G = palette[selezionaPalette(i)][(int) pixelGif[selezionaPalette(i)][c[selezionaPalette(i)]]].G;
-		pixelPPM[i].B = palette[selezionaPalette(i)][(int) pixelGif[selezionaPalette(i)][c[selezionaPalette(i)]]].B;
-		c[selezionaPalette(i)]++;
+
+		//Trovo lo spazio da utilizzare nelle strutture
+		selettore = selezionaPalette(i, selettore);
+		pixelPPM[i].R = palette[selettore][(int) pixelGif[selettore][c[selettore]]].R;
+		pixelPPM[i].G = palette[selettore][(int) pixelGif[selettore][c[selettore]]].G;
+		pixelPPM[i].B = palette[selettore][(int) pixelGif[selettore][c[selettore]]].B;
+		c[selettore]++;
 	}
 
 	//Chiudo il file e ritorno un valore di default
@@ -590,7 +595,7 @@ void creaDatiGifDaPPM() {
 	/*
 	 * Blocco per la conta delle occorrenze e il riodino dei colori
 	 */
-	int i, j, pos, min, somma, c[16];
+	int i, j, pos, min, somma, c[16], selettore = 0;
 	colorVet temp;
 
 	//Azzero le occorrenze del vettore dei colori
@@ -600,6 +605,7 @@ void creaDatiGifDaPPM() {
 		colori[i] = (colorVet*) malloc (larghezza * altezza * sizeof(colorVet));
 		c[i] = 0;
 
+		//Azzero tutte le occorrenze
 		for(j = 0; j < larghezza * altezza; j++) {
 			colori[i][j].occorrenza = 0;
 		}
@@ -610,33 +616,34 @@ void creaDatiGifDaPPM() {
 
 		//Scorro la lista dei colori per trovare se il colore è già presente o meno
 		i = 0;
-		while(i < coloriPalette && colori[selezionaPalette(pos)][i].occorrenza != 0 && !(pixelPPM[pos].R == colori[selezionaPalette(pos)][i].R &&
-				pixelPPM[pos].G == colori[selezionaPalette(pos)][i].G && pixelPPM[pos].B == colori[selezionaPalette(pos)][i].B))
+		selettore = selezionaPalette(pos, selettore);
+		while(i <= c[selettore] && colori[selettore][i].occorrenza != 0 && !(pixelPPM[pos].R == colori[selettore][i].R &&
+				pixelPPM[pos].G == colori[selettore][i].G && pixelPPM[pos].B == colori[selettore][i].B)) {
 			i++;
-
+		}
 		//Se ho trovato una corrispondenza aggiorno l'occorrenza
-		if(colori[selezionaPalette(pos)][i].occorrenza != 0) {
+		if(colori[selettore][i].occorrenza != 0) {
 
 			//Aggiorno la lista dei colori
-			colori[selezionaPalette(pos)][i].occorrenza++;
+			colori[selettore][i].occorrenza++;
 
 			//Trovo la posizione in cui spostare il colore appena aggiornato
 			j = i - 1;
-			while(j >= 0 && colori[selezionaPalette(pos)][j].occorrenza < colori[selezionaPalette(pos)][i].occorrenza)
+			while(j >= 0 && colori[selettore][j].occorrenza < colori[selettore][i].occorrenza)
 				j--;
 
 			//Effettuo lo scambio di posizione
-			temp = colori[selezionaPalette(pos)][j + 1];
-			colori[selezionaPalette(pos)][j + 1] = colori[selezionaPalette(pos)][i];
-			colori[selezionaPalette(pos)][i] = temp;
+			temp = colori[selettore][j + 1];
+			colori[selettore][j + 1] = colori[selettore][i];
+			colori[selettore][i] = temp;
 
 		//Inserisco il colore in una nuova posizione
 		} else {
-			colori[selezionaPalette(pos)][i].R = pixelPPM[pos].R;
-			colori[selezionaPalette(pos)][i].G = pixelPPM[pos].G;
-			colori[selezionaPalette(pos)][i].B = pixelPPM[pos].B;
-			colori[selezionaPalette(pos)][i].occorrenza++;
-			printf("%d", colori[selezionaPalette(pos)][i].occorrenza);
+			colori[selettore][i].R = pixelPPM[pos].R;
+			colori[selettore][i].G = pixelPPM[pos].G;
+			colori[selettore][i].B = pixelPPM[pos].B;
+			colori[selettore][i].occorrenza++;
+			c[selettore]++;
 		}
 	}
 
@@ -660,25 +667,30 @@ void creaDatiGifDaPPM() {
 	}
 
 	//Inizializzo il contatore delle occorrenze
-	for(i = 0; i < numPalette; i++)
-		c[i] = 0;
+	for(i = 0; i < numPalette * numPalette; i++)
+		lunghezzaPixel[i] = 0;
 
 	//Trovo il nuovo colore dei pixelPPM
+	selettore = 0;
 	for(i = 0; i < larghezza * altezza; i++) {
 
 		//Imposto la ricerca del minimo
 		min = 160000000;
+		selettore = selezionaPalette(i, selettore);
 
 		//Scansiono tutta la palette
-			for(j = 0; j < coloriPalette; j++) {
+		for(j = 0; j < coloriPalette; j++) {
 
-				//Cerco la distanza minima tra il colore originale e quelli nella palette
-				somma = abs(pixelPPM[i].R - palette[selezionaPalette(i)][j].R) + abs(pixelPPM[i].G - palette[selezionaPalette(i)][j].G) + abs(pixelPPM[i].B - palette[selezionaPalette(i)][j].B);
-				if(somma < min) {
-					min = somma;
-					pixelGif[selezionaPalette(i)][c[selezionaPalette(i)]] = (unsigned char) j;
+			//Cerco la distanza minima tra il colore originale e quelli nella palette
+			somma = abs(pixelPPM[i].R - palette[selettore][j].R) + abs(pixelPPM[i].G - palette[selettore][j].G) + abs(pixelPPM[i].B - palette[selettore][j].B);
+			if(somma < min) {
+				min = somma;
+				pixelGif[selettore][lunghezzaPixel[selettore]] = (unsigned char) j;
 			}
 		}
+
+		//Aggiorno il contatore dei pixel
+		lunghezzaPixel[selettore]++;
 	}
 }
 
@@ -749,7 +761,8 @@ int scriviGIF(char nomeFile[], unsigned char *daScrivere[]) {
 			fprintf(fout, "%u\n", daScrivere[i][j]);
 
 		//Controllo se scrivere o meno il separatore di palette
-		fprintf(fout, ",\n");
+		if(i != numPalette * numPalette - 1)
+			fprintf(fout, ",\n");
 	}
 
 	//Chiudo il file e ritorno un valore di default
