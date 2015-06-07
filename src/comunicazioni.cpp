@@ -40,13 +40,13 @@ typedef struct{
 	char *simbolo;
 }generazioneSimboli;
 
-colorVet *colori;
+colorVet *colori, **coloriLocali;
 pixelInfo *pixel, *palette;
-paletteSimboli *paletteGlobale;
+paletteSimboli *paletteGlobale, **paletteLocale;
 generazioneSimboli *simboli;
-char *matriceImmagine;
+char *matriceImmagine, **sottoMatriciImmagini;
 unsigned char *matriceImmagineConvertita;
-int larghezza,altezza,numColori,bitColore,coloriPalette;
+int larghezza,altezza,numColori,bitColore,coloriPalette,numeroSottoMatriciImmagine,mcd;
 char hexadecimalNumber[100];
 
 //-----------------------------------------------------------------------------------------------------
@@ -178,14 +178,6 @@ int LetturaFileXPM(char nomeFile[]){
 					c = 0;
 					simboloConf[bitColore] = '\0';
 
-					/*for(k=0;(k<numColori && flag == 0);k++){
-						//è una ricerca per simbolo non per valore non posso fare la dicotomica
-						if(strcmp(simboloConf,colori[k].simbolo) == 0){
-							colori[k].occorrenze++;
-							flag = 1;
-						}
-					}*/
-
 					flag = 0;
 					pos = 0;
 					//ricerca ottimizzata
@@ -210,14 +202,6 @@ int LetturaFileXPM(char nomeFile[]){
 		}
 	}
 
-	//stampa occorrenze
-	//FILE *occo=fopen("prova1.txt","w+");
-	//int somma = 0;
-	//for(i=0;i<numColori;i++){
-	//	fprintf(occo,"%s: %d\n",colori[i].simbolo,colori[i].occorrenze);
-	//	somma += colori[i].occorrenze;
-	//}
-	//fprintf(occo,"%d\n",somma);
 	printf("lettura del file XPM completata\n");
 	free(line);
 	getch();
@@ -255,9 +239,9 @@ int CostruzionePaletteGlobale(){
 		}
 	}
 
-	for(i=0;i<coloriPalette;i++){
-		printf("R: %d G: %d B: %d\n",colori[i].R,colori[i].G,colori[i].B);
-	}
+	//for(i=0;i<coloriPalette;i++){
+	//	printf("R: %d G: %d B: %d\n",colori[i].R,colori[i].G,colori[i].B);
+	//}
 
 	//funzionaaaaa
 	//con questa funzione se vogliamo differenziare ancora di piu la palette allora basta aumentare
@@ -324,7 +308,7 @@ int CostruzionePaletteGlobale(){
 				for(j=0;j<indiceColore;j++){
 					//controllo se il colore l'ho gia inserito all'interno della palette
 					//con questo indice dovrei arrivare all'ultimo valore inserito
-					if((verifica[0] == paletteGlobale[k].R) && ((verifica[1] == paletteGlobale[k].G)) && ((verifica[2] == paletteGlobale[k].B))){
+					if((verifica[0] == paletteGlobale[j].R) && ((verifica[1] == paletteGlobale[j].G)) && ((verifica[2] == paletteGlobale[j].B))){
 						flag = 0;
 						break;
 					}
@@ -334,9 +318,9 @@ int CostruzionePaletteGlobale(){
 				}
 				if(flag == 1){
 					//se non l'ho inserito lo inserisco alla prima posizione libera in teoria
-					paletteGlobale[indiceColore+1].R = colori[k].R & 0xFF;
-					paletteGlobale[indiceColore+1].G = colori[k].G & 0xFF;
-					paletteGlobale[indiceColore+1].B = colori[k].B & 0xFF;
+					paletteGlobale[indiceColore+1].R = verifica[0];
+					paletteGlobale[indiceColore+1].G = verifica[1];
+					paletteGlobale[indiceColore+1].B = verifica[2];
 					paletteGlobale[numColoriAssegnati].simbolo = (char*) malloc (bitColore * sizeof(char));
 					strcpy(paletteGlobale[numColoriAssegnati].simbolo,colori[k].simbolo);
 					indiceColore++;
@@ -370,6 +354,236 @@ int CostruzionePaletteGlobale(){
 
 	printf("creazione della palette globale completata\n");
 	getch();
+	return 0;
+}
+
+//-------------------------------------------------------------------------------------
+
+int MCD(int a, int b) {
+    while (a != b) {
+        if (a > b) {
+            a = a - b;
+        }
+        else {
+            b = b - a;
+        }
+    }
+    return a;
+}
+
+//-------------------------------------------------------------------------------------
+
+/*int OrdinamentoPaletteLocale(int altezzaMatrici, int larghezzaMatrici){
+
+	int i,k,j,t,c = 0,indiceColore = 0,flag = 0,numColoriAssegnati = 0,bitPrecisione;
+	colorVet scambio;
+	unsigned char verifica[3];
+
+	//vado ad inizializzare il vettore che conterrà i simboli dei colori che si trovano dentro la palette
+	paletteLocale = (paletteSimboli**) malloc (numeroSottoMatriciImmagine * sizeof(paletteSimboli*));
+	for(i=0;i<numeroSottoMatriciImmagine;i++){
+		paletteLocale[i]  = (paletteSimboli*) malloc (coloriPalette * sizeof(paletteSimboli));
+	}
+
+	//vado a settare i bit per controllare i colori simili
+	bitPrecisione = 6;
+
+	for(i=0;i<numeroSottoMatriciImmagine;i++){
+		for(j=0;j<(altezzaMatrici * larghezzaMatrici)-1;j++){
+			for(k=j+1;k<altezzaMatrici * larghezzaMatrici;k++){
+				if(colori[k].occorrenze > colori[j].occorrenze){
+					scambio = coloriLocali[j];
+					coloriLocali[j] = coloriLocali[k];
+					coloriLocali[k] = scambio;
+				}
+			}
+		}
+	}
+
+	//andiamo a mettere nella palette soltanto i primi 'coloriPalette' colori
+	//andiamo a recuperare il valore delle componenti dei colori
+	//dentro il ciclo che scorre tutte le palette globali ricordati di fare gli assegnamenti giusti
+
+	for(i=0;i<numeroSottoMatriciImmagine;i++){
+
+		flag = 0;
+		k = 0;
+		j = 0;
+
+		paletteLocale[i][k].R = (coloriLocali[i][k].R) & 0xFF;
+		paletteLocale[i][k].G = (coloriLocali[i][k].G) & 0xFF;
+		paletteLocale[i][k].B = (coloriLocali[i][k].B) & 0xFF;
+
+		//vado a copiare all'interno il simbolo del colore che viene inserito nella palette
+		paletteLocale[i][k].simbolo = (char*) malloc (bitColore * sizeof(char));
+		strcpy(paletteLocale[i][k].simbolo,coloriLocali[i][k].simbolo);
+
+		//aggiungo uno ai colori assegnati all'interno della palette
+		numColoriAssegnati++;
+		//indico l'ultima posizione scritta
+		indiceColore = j;
+
+		for(k=1;k<altezzaMatrici * larghezzaMatrici;k++){
+			if(numColoriAssegnati < coloriPalette){
+				flag = 0;
+				verifica[0] = coloriLocali[i][k].R & 0xFF;
+				verifica[1] = coloriLocali[i][k].G & 0xFF;
+				verifica[2] = coloriLocali[i][k].B & 0xFF;
+				for(j=0;(j<coloriPalette && flag == 0);j++){
+					if(((verifica[0] >> bitPrecisione) == (paletteLocale[i][j].R >> bitPrecisione)) && (((verifica[1] >> bitPrecisione) == (paletteLocale[i][j].G >> bitPrecisione))) && (((verifica[2] >> bitPrecisione) == (paletteLocale[i][j].B >> bitPrecisione)))){
+						break;
+					}
+					if(j == indiceColore){
+						//devo scrivere nelle successive posizioni di j
+						paletteLocale[i][j+1].R = verifica[0]; //R
+						paletteLocale[i][j+1].G = verifica[1]; //G
+						paletteLocale[i][j+1].B = verifica[2]; //B
+						paletteLocale[i][numColoriAssegnati].simbolo = (char*) malloc (bitColore * sizeof(char));
+						strcpy(paletteLocale[i][numColoriAssegnati].simbolo,coloriLocali[i][k].simbolo);
+						indiceColore = j + 1;
+						flag = 1;
+						numColoriAssegnati++;
+					}
+				}
+			}
+			else{
+				break;
+			}
+		}
+
+		printf("numColoriAssegnati = %d\n",numColoriAssegnati);
+
+		if(numColoriAssegnati < coloriPalette){
+			for(k=1;k<altezzaMatrici * larghezzaMatrici;k++){
+				if(numColoriAssegnati < coloriPalette){
+					flag = 1;
+					verifica[0] = coloriLocali[i][k].R & 0xFF;
+					verifica[1] = coloriLocali[i][k].G & 0xFF;
+					verifica[2] = coloriLocali[i][k].B & 0xFF;
+					for(j=0;j<indiceColore;j++){
+						//controllo se il colore l'ho gia inserito all'interno della palette
+						//con questo indice dovrei arrivare all'ultimo valore inserito
+						if((verifica[0] == paletteGlobale[k].R) && ((verifica[1] == paletteGlobale[k].G)) && ((verifica[2] == paletteGlobale[k].B))){
+							flag = 0;
+							break;
+						}
+						else{
+							flag = 1;
+						}
+					}
+					if(flag == 1){
+						//se non l'ho inserito lo inserisco alla prima posizione libera in teoria
+						paletteLocale[i][indiceColore+1].R = coloriLocali[i][k].R & 0xFF;
+						paletteLocale[i][indiceColore+1].G = coloriLocali[i][k].G & 0xFF;
+						paletteLocale[i][indiceColore+1].B = coloriLocali[i][k].B & 0xFF;
+						paletteLocale[i][numColoriAssegnati].simbolo = (char*) malloc (bitColore * sizeof(char));
+						strcpy(paletteLocale[i][numColoriAssegnati].simbolo,coloriLocali[i][k].simbolo);
+						indiceColore++;
+						numColoriAssegnati++;
+					}
+				}
+				else{
+					break;
+				}
+			}
+		}
+		printf("numColoriAssegnati = %d\n",numColoriAssegnati);
+
+	}
+
+
+
+	return 0;
+}*/
+
+//-------------------------------------------------------------------------------------
+
+int CostruzionePaletteLocale(){
+
+	int simboliTrovati = 0, larghezzaMatrici, numeroColonne, simboliInseriti, altezzaMatrici;
+	int i, c, t, j, k, flag = 0, pos = 0;
+	char simboloConf[bitColore];
+
+	numeroSottoMatriciImmagine = mcd*mcd;
+	larghezzaMatrici = int(larghezza / mcd);
+	altezzaMatrici = int(altezza/mcd);
+
+	//creazione delle sottomatrici
+	//allocazione in memoria
+	sottoMatriciImmagini = (char**) malloc (numeroSottoMatriciImmagine * sizeof(char*));
+	for(i=0;i<numeroSottoMatriciImmagine;i++){
+		sottoMatriciImmagini[i]  = (char*) malloc ((altezzaMatrici * larghezzaMatrici * bitColore) * sizeof(char));
+	}
+
+	for(i=0;i<numeroSottoMatriciImmagine;i++){
+		c = 0;
+		simboliTrovati = 0;
+		for(j = (i*larghezzaMatrici*bitColore);j < strlen(matriceImmagine);j++){
+			sottoMatriciImmagini[i][c] = matriceImmagine[j];
+			c++;
+			simboliTrovati++;
+
+			//controllare indici
+			if(simboliTrovati == larghezzaMatrici*bitColore){
+				j = j + (numeroSottoMatriciImmagine - 1)*larghezzaMatrici*bitColore;
+				simboliTrovati = 0;
+			}
+		}
+
+		printf("fatto\n");
+	}
+	printf("sottomatrici create\n");
+	getch();
+
+	//creazione delle palette
+	//allocazione in memoria
+	coloriLocali = (colorVet**) malloc (numeroSottoMatriciImmagine * sizeof(colorVet*));
+	for(i=0;i<numeroSottoMatriciImmagine;i++){
+		coloriLocali[i]  = (colorVet*) malloc ((altezzaMatrici * larghezzaMatrici) * sizeof(colorVet));
+	}
+
+	printf("dentro\n");
+	for(i=0;i<numeroSottoMatriciImmagine;i++){
+		c = 0;
+		simboliInseriti = 0;
+		for(j=0;j<strlen(sottoMatriciImmagini[i]);j++){
+
+			c++;
+			if(c == bitColore){
+				c = 0;
+				for(t=bitColore-1;t>=0;t--){
+					simboloConf[c] = sottoMatriciImmagini[i][j-t];
+					c++;
+				}
+				c = 0;
+				simboloConf[bitColore] = '\0';
+				//printf("simbolo: %s\n",simboloConf);
+
+				coloriLocali[i][simboliInseriti].simbolo = (char*) malloc (bitColore * sizeof(char));
+				flag = 0;
+				for(k=0;k<simboliInseriti && flag == 0;k++){
+					if((strcmp(simboloConf,coloriLocali[i][k].simbolo)) == 0){
+						//simbolo trovato
+						flag = 1;
+						pos = k;
+					}
+				}
+				if(flag == 0){
+					strcpy(coloriLocali[i][simboliInseriti].simbolo,simboloConf);
+					simboliInseriti++;
+				}
+				else if(flag == 1){
+					flag = 0;
+					coloriLocali[i][pos].occorrenze++;
+				}
+			}
+		}
+
+		printf("palette creata\n");
+		getch();
+	}
+
+
 	return 0;
 }
 
@@ -767,9 +981,9 @@ int main(){
 	char *nomeFile,ext[3];
 
 	//di sicuro ci sono modi piu efficaci
-	res = strlen("3.gif");
+	res = strlen("2.xpm");
 	nomeFile = (char*) malloc (res*sizeof(char));
-	strcpy(nomeFile,"3.gif");
+	strcpy(nomeFile,"2.xpm");
 
 	//ciclo che prende l'estensione del file
 	for(i=res-1;i>=res-3;i--){
@@ -824,7 +1038,60 @@ int main(){
 			}
 		}
 		else if(tipoPalette == 2){
-			//costruzione palette locale
+
+			//numero di matrici in cui dividere l'immagine
+			/*while((c != 1) && (c != 2)){
+				printf("in quante matrici vuoi dividere l'immagine?\n");
+				printf("1)4\n");
+				printf("2)16\n");
+				scanf("%d",&c);
+			}
+
+			switch(c){
+			case 1:
+				numeroMatrici = 4;
+				break;
+			case 2:
+				numeroMatrici = 16;
+				break;
+			}*/
+
+			mcd = MCD(larghezza,altezza);
+			printf("la matrici sara divisa in %d sottomatrici\n",mcd*mcd);
+
+			//numero di colori delle varie palette delle matrici
+			while((c != 1) && ((c != 2)) && ((c != 3)) && ((c != 4)) && ((c != 5))){
+				printf("da quanti colori vuoi che siano composte le palette da cui la matrice sara formata ?\n");
+				printf("1)16\n");
+				printf("2)32\n");
+				printf("3)64\n");
+				printf("4)128\n");
+				printf("5)256\n");
+				scanf("%d",&c);
+			}
+
+			switch(c){
+			case 1:
+				coloriPalette = 16;
+				res |= CostruzionePaletteLocale();
+				break;
+			case 2:
+				coloriPalette = 32;
+				res |= CostruzionePaletteLocale();
+				break;
+			case 3:
+				coloriPalette = 64;
+				res |= CostruzionePaletteLocale();
+				break;
+			case 4:
+				coloriPalette = 128;
+				res |= CostruzionePaletteLocale();
+				break;
+			case 5:
+				coloriPalette = 256;
+				res |= CostruzionePaletteLocale();
+				break;
+			}
 		}
 		else{
 			//controllo i casi che non entrano in nessuna delle possibilita
