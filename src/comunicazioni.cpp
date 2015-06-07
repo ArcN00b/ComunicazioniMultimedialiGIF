@@ -129,7 +129,7 @@ int compressoreLZW(int indice) {
 	}
 
 	//Scorro tutti i pixelPPM dell'immagine
-	for(i = 0; i < larghezza * altezza; i++) {
+	for(i = 0; i < lunghezzaPixel[indice]; i++) {
 
 		//Scrivo in forma di stringa il simbolo attuale
 		temp[0] = pixelGif[indice][i];
@@ -574,7 +574,7 @@ int LetturaFileGIF(char nomeFile[]) {
 
 		//Trovo lo spazio da utilizzare nelle strutture
 		selettore = selezionaPalette(i, selettore);
-		printf("i = %d, selettore = %d\n", i, selettore);
+		//printf("i = %d, selettore = %d\n", i, selettore);
 		pixelPPM[i].R = palette[selettore][(int) pixelGif[selettore][c[selettore]]].R;
 		pixelPPM[i].G = palette[selettore][(int) pixelGif[selettore][c[selettore]]].G;
 		pixelPPM[i].B = palette[selettore][(int) pixelGif[selettore][c[selettore]]].B;
@@ -616,7 +616,7 @@ void creaDatiGifDaPPM() {
 		//Scorro la lista dei colori per trovare se il colore è già presente o meno
 		i = 0;
 		selettore = selezionaPalette(pos, selettore);
-		printf("pos = %d, selettore = %d\n", pos, selettore);
+		//printf("pos = %d, selettore = %d\n", pos, selettore);
 		while(i <= c[selettore] && colori[selettore][i].occorrenza != 0 && !(pixelPPM[pos].R == colori[selettore][i].R &&
 				pixelPPM[pos].G == colori[selettore][i].G && pixelPPM[pos].B == colori[selettore][i].B)) {
 			i++;
