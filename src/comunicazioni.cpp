@@ -36,7 +36,7 @@ pixelInfo *pixelPPM, *palette[16];
 colorVet *colori[16];
 unsigned char *pixelGif[16], *pixelLzw[16];
 char *pixelXpm;
-int larghezza, altezza, coloriPalette, bitColore, numColori, numPalette, lzw;
+int larghezza, altezza, coloriPalette, bitColore, bitPrecisione = 4, numPalette, lzw;
 //Vettore utilizzato per conoscere la quantità di pixel scritta e letta da file
 int lunghezzaPixel[16];
 
@@ -594,7 +594,7 @@ void creaDatiGifDaPPM() {
 	/*
 	 * Blocco per la conta delle occorrenze e il riodino dei colori
 	 */
-	int i, j, pos, min, somma, c[16], selettore = 0;
+	int i, j, k, pos, min, somma, c[16], selettore = 0;
 	colorVet temp;
 
 	//Azzero le occorrenze del vettore dei colori
@@ -659,10 +659,29 @@ void creaDatiGifDaPPM() {
 
 	//Prendo i primi grandezza colori dal vettore colori
 	for(i = 0; i < numPalette * numPalette; i++) {
-		for(j = 0; j < coloriPalette; j++) {
-			palette[i][j].R = colori[i][j].R;
-			palette[i][j].G = colori[i][j].G;
-			palette[i][j].B = colori[i][j].B;
+		pos = 0;
+		j = 0;
+
+		//Scorro la lista dei colori
+		while(j < larghezza * altezza && pos < coloriPalette) {
+
+			//Scorro la palette controllando che il colore non sia già presente
+			k = 0;
+			while( k <= pos && !(palette[i][k].R >> bitPrecisione == colori[i][j].R >> bitPrecisione && palette[i][k].G >> bitPrecisione == colori[i][j].G >> bitPrecisione &&
+					palette[i][k].B >> bitPrecisione == colori[i][j].B >> bitPrecisione))
+				k++;
+
+			//Se è vera allora ho un colore già presente
+			if(k <= pos)
+				j++;
+			//In caso contrario aggiungo il colore alla palette
+			else {
+				palette[i][pos].R = colori[i][j].R;
+				palette[i][pos].G = colori[i][j].G;
+				palette[i][pos].B = colori[i][j].B;
+				pos++;
+				j++;
+			}
 		}
 	}
 
@@ -682,11 +701,16 @@ void creaDatiGifDaPPM() {
 		for(j = 0; j < coloriPalette; j++) {
 
 			//Cerco la distanza minima tra il colore originale e quelli nella palette
-			somma = abs(pixelPPM[i].R - palette[selettore][j].R) + abs(pixelPPM[i].G - palette[selettore][j].G) + abs(pixelPPM[i].B - palette[selettore][j].B);
+			somma = abs((pixelPPM[i].R >> bitPrecisione) - (palette[selettore][j].R >> bitPrecisione)) + abs((pixelPPM[i].G >> bitPrecisione) - (palette[selettore][j].G >> bitPrecisione)) +
+					abs((pixelPPM[i].B >> bitPrecisione) - (palette[selettore][j].B >> bitPrecisione));
 			if(somma < min) {
 				min = somma;
 				pixelGif[selettore][lunghezzaPixel[selettore]] = (unsigned char) j;
 			}
+
+			//Se ho già trovato il minimo
+			if(min == 0)
+				j += coloriPalette;
 		}
 
 		//Aggiorno il contatore dei pixel
