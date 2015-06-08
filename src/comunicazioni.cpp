@@ -36,7 +36,7 @@ pixelInfo *pixelPPM, *palette[16];
 colorVet *colori[16];
 unsigned char *pixelGif[16], *pixelLzw[16];
 char *pixelXpm;
-int larghezza, altezza, coloriPalette, bitColore, bitPrecisione = 4, numPalette, lzw;
+int larghezza, altezza, coloriPalette, bitColore, bitPrecisione, numPalette, lzw;
 //Vettore utilizzato per conoscere la quantità di pixel scritta e letta da file
 int lunghezzaPixel[16];
 
@@ -230,12 +230,14 @@ int decompressoreLZW(int indiceLzw, int indice) {
 	while(i < indiceLzw) {
 
 		//Ottengo la posizione dell'indice dal pixelPPM lzw attuale
-		if(fineDizionario < 256 - 1) {
+		if(fineDizionario < 256) {
 			pos = pixelLzw[indice][i++];
 		} else {
 			pos = (pixelLzw[indice][i] << 8) + pixelLzw[indice][i + 1];
 			i += 2;
 		}
+
+		printf("finedizionario = %d\n", fineDizionario);
 
 		//Aggiorno il dizionario aggiungendo il nuovo codice a quello precedente
 		if(fineDizionario != coloriPalette) {
@@ -248,6 +250,8 @@ int decompressoreLZW(int indiceLzw, int indice) {
 			pixelGif[indice][indiceGif] = (unsigned char) dizionario[pos][j];
 			indiceGif++;
 		}
+
+		printf("qui\n");
 
 		//Aggiungo la stringa composta al dizionario
 		dizionario[fineDizionario] = (int*) malloc((numCifre[pos] + 3) * sizeof(int));
@@ -282,163 +286,6 @@ int decompressoreLZW(int indiceLzw, int indice) {
 	//ritorno la lunghezza dei pixel generati
 	return indiceGif;
 }
-
-//-----------------------------------------------------------------------------------------------------
-/* Funzione che legge un file in formato xpm e compila le strutture dati di conseguenza
- */
-/*int LetturaFileXPM(char nomeFile[]) {
-
-	FILE *fin;
-	char *line, *str, hexString[2], simboloConf[bitColore];
-	int i, cline=0, k, c=0, j=0, t, o=0, flag = 0, pos = 0;
-
-	//Apro il file per la lettura controllando che non ci siano problemi
-	fin = fopen(nomeFile,"r+");
-	if(fin == NULL){
-		fclose(fin);
-		return -1;
-	}
-
-	//Dichiaro uno spazio iniziale per leggere le varie righe del file
-	line = (char*) malloc (256 * sizeof(char));
-
-	//Scorro tutto il file
-	while(!(feof(fin))){
-
-		//Leggo la linea contando quante e aggiorno il contatore delle linee lette
-		fscanf(fin, " %[^\n]",line);
-		cline++;
-
-		//Lettura della linea giusta in cui trovare le informazioni sull'immagine
-		if(cline == 3 && line[0] != '/'){
-
-			//leggo il primo valore (larghezza) eliminando il carattere " iniziale
-			str = strtok(line, " ");
-			for(i = 0; i < strlen(str); i++)
-				str[i] = str[i + 1];
-			larghezza = atoi(str);
-
-			//Leggo altezza e numero colori dalla linea
-			altezza = atoi(strtok(line, " "));
-			numColori = atoi(strtok(NULL, " "));
-
-			//Leggo i bit del colore eliminando il carattere " finale
-			str = strtok(NULL, "\0");
-			str[strlen(str) - 1] = str[strlen(str)];
-			bitColore = atoi(str);
-
-			//Aumento la dimensione di line in base alla larghezza del file
-			line = (char*) malloc (larghezza * bitColore * sizeof(char) + 6);
-
-			//Alloco nella dimensione esatta lo spazio per le altre strutture
-			pixelXpm = (char*) malloc (altezza * larghezza * bitColore * sizeof(char));
-			pixelGif = (unsigned char*) malloc (altezza * larghezza * sizeof(unsigned char));
-
-		//Nel caso in cui in linea 3 sia presente un commento
-		} else if(cline == 3 && line[0] == '/') {
-			cline--;
-
-		//Lettura della lista dei colori
-		} else if((cline >= 4) && (cline <= numColori + 3)){
-
-			//Scrivo il simbolo del colore all'interno della struttura dati
-			for(i = 0; i < bitColore; i++){
-				colori[cline - 4].simbolo[i] = line[i + 1];
-			}
-			colori[cline - 4].simbolo[bitColore] = '\0';
-			colori[cline - 4].occorrenza = 0;
-
-			//Salvo il valore del colore esadecimale all'interno di str
-			t = 0;
-			str = (char*) malloc (6 * sizeof(char));
-			for(i = bitColore + 5; i < strlen(line) - 3; i++){
-				str[t++] = line[i];
-			}
-
-			//converto le tre componenti RGB e le porto in decimale
-			hexString[0] = str[0];
-			hexString[1] = str[1];
-			colori[cline - 4].R = strtol(hexString, NULL, 16);
-			hexString[0] = str[2];
-			hexString[1] = str[3];
-			colori[cline - 4].G = strtol(hexString,NULL,16);
-			hexString[0] = str[4];
-			hexString[1] = str[5];
-			colori[cline - 4].B = strtol(hexString,NULL,16);
-
-			//sono in ordine dal piu piccolo al piu grande, il colore successivo, ha almeno
-			//due componenti maggiori di quello precedente
-		}
-
-		//Leggo i simboli che compongono i pixel dell'immagine
-		else if((cline > numColori + 3) && (cline < altezza + numColori + 4)){
-
-			//il vettore che contiene tutta l'immagine è scritto riga per riga
-			c = 0;
-			for(i = 1; i < strlen(line) - 2; i++){
-
-				//c è l'indice che mi dice quando sono stati salvati due simboli, quindi
-				//quando posso prendere i due simboli per controllare l'occorrenza
-				c++;
-
-				//copio un carattere del simbolo all'interno della matrice
-				pixelXpm[j] = line[i];
-
-				//j è l'indice con cui vado a salvari simboli nella matrice
-				j++;
-				if(c == bitColore){
-					c = 0;
-					for(t = bitColore - 1; t >= 0; t--){
-						simboloConf[c] = line[i - t];
-						c++;
-					}
-					c = 0;
-					simboloConf[bitColore] = '\0';
-
-					/*for(k=0;(k<numColori && flag == 0);k++){
-						//è una ricerca per simbolo non per valore non posso fare la dicotomica
-						if(strcmp(simboloConf,colori[k].simbolo) == 0){
-							colori[k].occorrenze++;
-							flag = 1;
-						}
-					}*//*
-
-					flag = 0;
-					pos = 0;
-					//ricerca ottimizzata
-					//da controllare se lo riesco a fare bene spacca
-					for(k = bitColore - 1; k >= 0; k--){
-						flag = 0;
-						for(o = pos; o < numColori && flag == 0; o += pow(92,k)){
-							if(simboloConf[k] == colori[o].simbolo[k]){
-								flag = 1;
-								pos = o;
-							}
-						}
-						if(k == 0){
-							colori[pos].occorrenza++;
-						}
-					}
-				}
-			}
-		}
-		else{
-				//controllo i casi che non rientrano in nessun if
-		}
-	}
-
-	//stampa occorrenze
-	//FILE *occo=fopen("prova1.txt","w+");
-	//int somma = 0;
-	//for(i=0;i<numColori;i++){
-	//	fprintf(occo,"%s: %d\n",colori[i].simbolo,colori[i].occorrenze);
-	//	somma += colori[i].occorrenze;
-	//}
-	//fprintf(occo,"%d\n",somma);
-	free(line);
-	fclose(fin);
-	return 0;
-}*/
 
 //-----------------------------------------------------------------------------------------------------
 /* Funzione che legge un file in formato ASCII ppm e compila le strutture dati di conseguenza
@@ -554,6 +401,9 @@ int LetturaFileGIF(char nomeFile[]) {
 			i = 0;
 		}
 	}
+
+	//Elimino l'ultima linea (poichè vuota) dai pixel utilizzabili
+	lunghezzaPixel[numPalette * numPalette - 1]--;
 
 	//Decomprimo i pixelPPM se sono stati compressi
 	if (lzw == 1) {
@@ -907,6 +757,16 @@ int main(){
 			numPalette = 4;
 			break;
 		}
+
+		//Stampo il menù a video
+		input = 0;
+		while(input < 0 || input > 8){
+			printf("Quanti bit di precisione uso nella scelta dei colori? (0 <= input <= 8)\n");
+			scanf("%d",&input);
+		}
+
+		//Assegno il numero inserito alla variabile globale bitPrecisione
+		bitPrecisione = input;
 
 		//Creo la palette globale
 		printf("Creo dati gif\n");
