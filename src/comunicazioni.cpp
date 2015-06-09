@@ -731,7 +731,7 @@ int main(){
 			break;
 		}
 
-		//Stampo il menù a video
+		//Stampo il menù a video per la gestione del numero palette
 		input = 0;
 		while(input != 1 && input != 2 && input != 3 && input != 4){
 			printf("Quante palette uso?\n");
