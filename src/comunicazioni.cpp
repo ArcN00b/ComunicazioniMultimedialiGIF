@@ -47,7 +47,7 @@ generazioneSimboli *simboli;
 char *matriceImmagine;
 unsigned char *matriceImmagineConvertita;
 int larghezza,altezza,numColori,bitColore,coloriPalette, bitPrecisione;
-char hexadecimalNumber[100];
+char hexadecimalNumber[3];
 
 //-----------------------------------------------------------------------------------------------------
 /*Al termine di questa funzione abbiamo una lista di colori ordinata con il rispettivo simbolo e occorrenza
@@ -419,13 +419,13 @@ int CostruzioneMatriceImmagineGIF(){
 			for(j=0;j<coloriPalette;j++){
 
 				//è univoco questo conto ?
-				//sommaDiff = abs((componenteRossa >> bitPrecisione) - (paletteGlobale[j].R >> bitPrecisione)) +
-				//			abs((componentVerde >> bitPrecisione) - (paletteGlobale[j].G >> bitPrecisione)) +
-				//			abs((componenteBlu >> bitPrecisione) - (paletteGlobale[j].B >> bitPrecisione));
+				sommaDiff = abs((componenteRossa >> bitPrecisione) - (paletteGlobale[j].R >> bitPrecisione)) +
+							abs((componentVerde >> bitPrecisione) - (paletteGlobale[j].G >> bitPrecisione)) +
+							abs((componenteBlu >> bitPrecisione) - (paletteGlobale[j].B >> bitPrecisione));
 
-				sommaDiff = abs((componenteRossa ) - (paletteGlobale[j].R )) +
-							abs((componentVerde ) - (paletteGlobale[j].G )) +
-							abs((componenteBlu ) - (paletteGlobale[j].B ));
+				//sommaDiff = abs((componenteRossa ) - (paletteGlobale[j].R )) +
+				//			abs((componentVerde ) - (paletteGlobale[j].G )) +
+				//			abs((componenteBlu ) - (paletteGlobale[j].B ));
 
 				//piu la differenza è minore piu il colore si avvicina all'originale
 				if(sommaDiff < min){
@@ -612,31 +612,31 @@ int ScriviPPM(char nomeFile[]) {
 }
 */
 //-----------------------------------------------------------------------------------------
-int DecToHex(long decimalNumber){
+int DecToHex(int decimalNumber){
 
-	long int remainder,quotient;
+	int quotient;
 	int i=1,j,temp;
 
 	quotient = decimalNumber;
 
-	for(i=0;i<100;i++){
-		hexadecimalNumber[i] = 48;
-	}
-
-	i = 1;
+	hexadecimalNumber[0] = 48;
+	hexadecimalNumber[1] = 48;
 
 	while(quotient != 0){
 		 temp = quotient % 16;
 
-	  if( temp < 10)
+	  if( temp < 10){
 		   temp =temp + 48;
-	  else
+	  }
+	  else{
 		 temp = temp + 55;
+	  }
 
 	  hexadecimalNumber[i]= temp;
-	  i++;
+	  i--;
 	  quotient = trunc(quotient / 16);
 	}
+
 
 	return 0;
 }
@@ -701,9 +701,6 @@ int ScriviXPM(char nomeFile[]){
 			if((j > 1) || (i == bitColore-1)){
 				if((j % ((int)pow(91,k))) == 0){
 					numSimbolo++;
-					if(numSimbolo == 34){
-						numSimbolo++;
-					}
 				}
 			}
 
@@ -714,30 +711,12 @@ int ScriviXPM(char nomeFile[]){
 		simboli[i].simbolo[bitColore] = '\0';
 		//printf("%s\n",simboli[i].simbolo);
 		fprintf(fout, "\"%s c #",simboli[i].simbolo);
-		if(palette[i].R == 0){
-			hexadecimalNumber[2] = 48;
-			hexadecimalNumber[1] = 48;
-		}
-		else{
-			DecToHex(palette[i].R);
-		}
-		fprintf(fout,"%c%c",hexadecimalNumber[2],hexadecimalNumber[1]);
-		if(palette[i].G == 0){
-			hexadecimalNumber[2] = 48;
-			hexadecimalNumber[1] = 48;
-		}
-		else{
-			DecToHex(palette[i].G);
-		}
-		fprintf(fout,"%c%c",hexadecimalNumber[2],hexadecimalNumber[1]);
-		if(palette[i].B == 0){
-			hexadecimalNumber[2] = 48;
-			hexadecimalNumber[1] = 48;
-		}
-		else{
-			DecToHex(palette[i].B);
-		}
-		fprintf(fout,"%c%c\",\n",hexadecimalNumber[2],hexadecimalNumber[1]);
+		DecToHex(palette[i].R);
+		fprintf(fout,"%c%c",hexadecimalNumber[0],hexadecimalNumber[1]);
+		DecToHex(palette[i].G);
+		fprintf(fout,"%c%c",hexadecimalNumber[0],hexadecimalNumber[1]);
+		DecToHex(palette[i].B);
+		fprintf(fout,"%c%c\",\n",hexadecimalNumber[0],hexadecimalNumber[1]);
 	}
 
 	//stampo la matrice che contiene i colori
