@@ -419,9 +419,13 @@ int CostruzioneMatriceImmagineGIF(){
 			for(j=0;j<coloriPalette;j++){
 
 				//è univoco questo conto ?
-				sommaDiff = abs((componenteRossa >> bitPrecisione) - (paletteGlobale[j].R >> bitPrecisione)) +
-							abs((componentVerde >> bitPrecisione) - (paletteGlobale[j].G >> bitPrecisione)) +
-							abs((componenteBlu >> bitPrecisione) - (paletteGlobale[j].B >> bitPrecisione));
+				//sommaDiff = abs((componenteRossa >> bitPrecisione) - (paletteGlobale[j].R >> bitPrecisione)) +
+				//			abs((componentVerde >> bitPrecisione) - (paletteGlobale[j].G >> bitPrecisione)) +
+				//			abs((componenteBlu >> bitPrecisione) - (paletteGlobale[j].B >> bitPrecisione));
+
+				sommaDiff = abs((componenteRossa ) - (paletteGlobale[j].R )) +
+							abs((componentVerde ) - (paletteGlobale[j].G )) +
+							abs((componenteBlu ) - (paletteGlobale[j].B ));
 
 				//piu la differenza è minore piu il colore si avvicina all'originale
 				if(sommaDiff < min){
@@ -563,7 +567,7 @@ int LetturaFileGIF(char nomeFile[]) {
 	pixel = (pixelInfo*) malloc (larghezza * altezza * sizeof(pixelInfo));
 
 	//Associo ad ogni pixel il valore ricavato dalla palette
-	for(i = 0; i < larghezza * altezza; i++) {
+	for(i = 0; i < altezza * larghezza; i++) {
 		pixel[i].R = palette[(int) matriceImmagineConvertita[i]].R;
 		pixel[i].G = palette[(int) matriceImmagineConvertita[i]].G;
 		pixel[i].B = palette[(int) matriceImmagineConvertita[i]].B;
@@ -614,6 +618,12 @@ int DecToHex(long decimalNumber){
 	int i=1,j,temp;
 
 	quotient = decimalNumber;
+
+	for(i=0;i<100;i++){
+		hexadecimalNumber[i] = 48;
+	}
+
+	i = 1;
 
 	while(quotient != 0){
 		 temp = quotient % 16;
@@ -685,7 +695,7 @@ int ScriviXPM(char nomeFile[]){
 		for(j=0;j<numColori;j++){
 
 			simboli[j].simbolo[i-1] = (char)numSimbolo;
-			if(numSimbolo == 124){
+			if(numSimbolo == 123){
 				numSimbolo = 32;
 			}
 			if((j > 1) || (i == bitColore-1)){
