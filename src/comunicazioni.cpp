@@ -237,8 +237,6 @@ int decompressoreLZW(int indiceLzw, int indice) {
 			i += 2;
 		}
 
-		printf("finedizionario = %d\n", fineDizionario);
-
 		//Aggiorno il dizionario aggiungendo il nuovo codice a quello precedente
 		if(fineDizionario != coloriPalette) {
 			dizionario[fineDizionario - 1][numCifre[fineDizionario - 1]] = dizionario[pos][0];
@@ -250,8 +248,6 @@ int decompressoreLZW(int indiceLzw, int indice) {
 			pixelGif[indice][indiceGif] = (unsigned char) dizionario[pos][j];
 			indiceGif++;
 		}
-
-		printf("qui\n");
 
 		//Aggiungo la stringa composta al dizionario
 		dizionario[fineDizionario] = (int*) malloc((numCifre[pos] + 3) * sizeof(int));
@@ -509,27 +505,57 @@ void creaDatiGifDaPPM() {
 
 	//Prendo i primi grandezza colori dal vettore colori
 	for(i = 0; i < numPalette * numPalette; i++) {
-		pos = 0;
+		c[i] = 0;
 		j = 0;
 
 		//Scorro la lista dei colori
-		while(j < larghezza * altezza && pos < coloriPalette) {
+		while(j <= larghezza * altezza && c[i] < coloriPalette) {
 
 			//Scorro la palette controllando che il colore non sia già presente
 			k = 0;
-			while( k <= pos && !(palette[i][k].R >> bitPrecisione == colori[i][j].R >> bitPrecisione && palette[i][k].G >> bitPrecisione == colori[i][j].G >> bitPrecisione &&
+			while(k <= c[i] && !(palette[i][k].R >> bitPrecisione == colori[i][j].R >> bitPrecisione && palette[i][k].G >> bitPrecisione == colori[i][j].G >> bitPrecisione &&
 					palette[i][k].B >> bitPrecisione == colori[i][j].B >> bitPrecisione))
 				k++;
 
 			//Se è vera allora ho un colore già presente
-			if(k <= pos)
+			if(k <= c[i])
 				j++;
+
 			//In caso contrario aggiungo il colore alla palette
 			else {
-				palette[i][pos].R = colori[i][j].R;
-				palette[i][pos].G = colori[i][j].G;
-				palette[i][pos].B = colori[i][j].B;
-				pos++;
+				palette[i][c[i]].R = colori[i][j].R;
+				palette[i][c[i]].G = colori[i][j].G;
+				palette[i][c[i]].B = colori[i][j].B;
+				c[i]++;
+				j++;
+			}
+		}
+	}
+
+	//Se le palette sono composte con meno colori di quelli che vengono selezionati
+	//Prendo i primi grandezza colori dal vettore colori
+	for(i = 0; i < numPalette * numPalette; i++) {
+		j = 0;
+
+		//Scorro la lista dei colori
+		while(j <= larghezza * altezza && c[i] < coloriPalette) {
+
+			//Scorro la palette controllando che il colore non sia già presente
+			k = 0;
+			while(k <= c[i] && !(palette[i][k].R == colori[i][j].R && palette[i][k].G == colori[i][j].G &&
+					palette[i][k].B == colori[i][j].B))
+				k++;
+
+			//Se è vera allora ho un colore già presente
+			if(k <= c[i])
+				j++;
+
+			//In caso contrario aggiungo il colore alla palette
+			else {
+				palette[i][c[i]].R = colori[i][j].R;
+				palette[i][c[i]].G = colori[i][j].G;
+				palette[i][c[i]].B = colori[i][j].B;
+				c[i]++;
 				j++;
 			}
 		}
@@ -551,8 +577,8 @@ void creaDatiGifDaPPM() {
 		for(j = 0; j < coloriPalette; j++) {
 
 			//Cerco la distanza minima tra il colore originale e quelli nella palette
-			somma = abs((pixelPPM[i].R >> bitPrecisione) - (palette[selettore][j].R >> bitPrecisione)) + abs((pixelPPM[i].G >> bitPrecisione) - (palette[selettore][j].G >> bitPrecisione)) +
-					abs((pixelPPM[i].B >> bitPrecisione) - (palette[selettore][j].B >> bitPrecisione));
+			somma = abs((pixelPPM[i].R) - (palette[selettore][j].R)) + abs((pixelPPM[i].G) - (palette[selettore][j].G)) +
+					abs((pixelPPM[i].B) - (palette[selettore][j].B));
 			if(somma < min) {
 				min = somma;
 				pixelGif[selettore][lunghezzaPixel[selettore]] = (unsigned char) j;
@@ -577,6 +603,9 @@ int scriviPPM(char nomeFile[]) {
 	int i;
 
 	//Cambio estensione al nome del file
+	nomeFile[strlen(nomeFile) - 6] = 'p';
+	nomeFile[strlen(nomeFile) - 5] = 'm';
+	nomeFile[strlen(nomeFile) - 4] = '.';
 	nomeFile[strlen(nomeFile) - 3] = 'p';
 	nomeFile[strlen(nomeFile) - 2] = 'p';
 	nomeFile[strlen(nomeFile) - 1] = 'm';
@@ -759,7 +788,7 @@ int main(){
 		}
 
 		//Stampo il menù a video
-		input = 0;
+		input = -1;
 		while(input < 0 || input > 8){
 			printf("Quanti bit di precisione uso nella scelta dei colori? (0 <= input <= 8)\n");
 			scanf("%d",&input);
