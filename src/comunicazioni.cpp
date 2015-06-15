@@ -40,14 +40,23 @@ typedef struct{
 	char *simbolo;
 }generazioneSimboli;
 
-colorVet *colori;
-pixelInfo *pixel, *palette;
-paletteSimboli *paletteGlobale;
+typedef struct{
+	char R[3];
+	char G[3];
+	char B[3];
+}paletteXPM;
+
+colorVet *colori, **coloriLocali;
+pixelInfo *pixelXPM, **palette, *palXPMint;
+paletteSimboli *paletteGlobale, **paletteLocale;
 generazioneSimboli *simboli;
-char *matriceImmagine;
-unsigned char *matriceImmagineConvertita;
-int larghezza,altezza,numColori,bitColore,coloriPalette, bitPrecisione;
+paletteXPM *palXPMchar;
+char *matriceImmagine, **sottoMatriciImmagini;
+unsigned char *matriceImmagineConvertita, **sottoMatriciImmagineConvertita, *pixelGif[16];
+int larghezza,altezza,numColori,bitColore,coloriPalette,numeroSottoMatriciImmagine,mcd,larghezzaMatrici,altezzaMatrici,bitPrecisione;
+int lunghezzaPixel[16], lzw;
 char hexadecimalNumber[3];
+paletteXPM confronto;
 
 //-----------------------------------------------------------------------------------------------------
 /*Al termine di questa funzione abbiamo una lista di colori ordinata con il rispettivo simbolo e occorrenza
@@ -222,6 +231,357 @@ int LetturaFileXPM(char nomeFile[]){
 	free(line);
 	//getch();
 	fclose(fin);
+	return 0;
+}
+
+//--------------------------------------------------------------------------------------
+
+int CostruzioneMatriceImmagineLocaleGIF(){
+
+	int i,c=0,j,flag=0,min,sommaDiff,t=0,k;
+	int componenteRossa,componentVerde,componenteBlu;
+	char *simbolo;
+	unsigned char pos;
+
+
+	sottoMatriciImmagineConvertita = (unsigned char**) malloc (numeroSottoMatriciImmagine * sizeof(unsigned char*));
+	for(i=0;i<numeroSottoMatriciImmagine;i++){
+		sottoMatriciImmagineConvertita[i]  = (unsigned char*) malloc ((altezzaMatrici * larghezzaMatrici) * sizeof(unsigned char));
+	}
+
+	simbolo = (char*) malloc (bitColore * sizeof(char));
+
+	//ciclo per prendere dentro tutte le sottomatrici
+	for(k=0;k<numeroSottoMatriciImmagine;k++){
+
+		t = 0;
+
+		for(i=1;i<=strlen(sottoMatriciImmagini[k]);i++){
+			//ciclo che prende ogni simbolo dell'immagine e verifica se si trova all'interno della palette
+
+			simbolo[c] = sottoMatriciImmagini[k][i-1];
+			c++;
+
+			if((i % bitColore) == 0){
+				//a questo punto io ho un simbolo e devo andare a recuperare il valore delle sue componenti
+				c = 0;
+				simbolo[bitColore] = '\0';
+				for(j=0;(j<(altezzaMatrici * larghezzaMatrici) && flag == 0);j++){
+					if(strcmp(simbolo,coloriLocali[k][j].simbolo) == 0){
+						flag = 1;
+						componenteRossa = coloriLocali[k][j].R;
+						componentVerde = coloriLocali[k][j].G;
+						componenteBlu = coloriLocali[k][j].B;
+					}
+				}
+				if(flag == 0){
+					printf("non trovato\n");
+				}
+				else{
+					flag = 0;
+				}
+
+				//a questo punto abbiamo i valori numerici interi del colore e dobbiamo andare a fare la differenza con i colori all'interno
+				//palette
+				sommaDiff = 0;
+				min = 10000000;
+				//scorro la palette
+				for(j=0;j<coloriPalette;j++){
+
+					//è univoco questo conto ?
+					//sommaDiff = abs((componenteRossa >> bitPrecisione) - (paletteLocale[k][j].R >> bitPrecisione)) +
+					//			abs((componentVerde >> bitPrecisione) - (paletteLocale[k][j].G >> bitPrecisione)) +
+					//			abs((componenteBlu >> bitPrecisione) - (paletteLocale[k][j].B >> bitPrecisione));
+
+					sommaDiff = abs((componenteRossa ) - (paletteLocale[k][j].R)) +
+								abs((componentVerde ) - (paletteLocale[k][j].G )) +
+								abs((componenteBlu ) - (paletteLocale[k][j].B ));
+
+					//piu la differenza è minore piu il colore si avvicina all'originale
+					if(sommaDiff < min){
+						min = sommaDiff;
+						pos = (unsigned char)j;
+					}
+
+					if(min == 0){
+						j += coloriPalette;
+					}
+				}
+
+				//vado a copiare il valore della posizione del colore all'interno della matrice dell'immagine
+				sottoMatriciImmagineConvertita[k][t] = pos;
+
+				//contatore che mi tiene conto del numero di simboli che ho riconosciuto
+				t++;
+			}
+		}
+	}
+
+	printf("costruzione matrice immagine GIF completata\n");
+	getch();
+
+	return 0;
+}
+
+//---------------------------------------------------------------------------------------
+
+int OrdinamentoPaletteLocale(){
+
+	int i,k,j,t,c = 0,indiceColore = 0,flag = 0,numColoriAssegnati = 0,bitPrecisione;
+	colorVet scambio;
+	unsigned char verifica[3];
+
+	//vado ad inizializzare il vettore che conterrà i simboli dei colori che si trovano dentro la palette
+	paletteLocale = (paletteSimboli**) malloc (numeroSottoMatriciImmagine * sizeof(paletteSimboli*));
+	for(i=0;i<numeroSottoMatriciImmagine;i++){
+		paletteLocale[i]  = (paletteSimboli*) malloc (coloriPalette * sizeof(paletteSimboli));
+	}
+
+	//vado a settare i bit per controllare i colori simili
+	bitPrecisione = 4;
+
+	for(i=0;i<numeroSottoMatriciImmagine;i++){
+		for(j=0;j<numColori-1;j++){
+			if(coloriLocali[i][j].simbolo != NULL){
+				for(k=j+1;k<numColori;k++){
+					if(coloriLocali[i][k].simbolo != NULL){
+						if(coloriLocali[i][k].occorrenze > coloriLocali[i][j].occorrenze){
+							scambio = coloriLocali[i][j];
+							coloriLocali[i][j] = coloriLocali[i][k];
+							coloriLocali[i][k] = scambio;
+						}
+					}
+				}
+			}
+		}
+	}
+
+
+	/*for(i=0;i<numeroSottoMatriciImmagine;i++){
+		for(j=0;j<coloriPalette;j++){
+			printf("sim: %s, R: %d, G: %d, B: %d, occ: %d\n",coloriLocali[i][j].simbolo,coloriLocali[i][j].R,coloriLocali[i][j].G,coloriLocali[i][j].B,coloriLocali[i][j].occorrenze);
+		}
+		getch();
+	}*/
+
+	for(i=0;i<numeroSottoMatriciImmagine;i++){
+
+		flag = 0;
+		k = 0;
+		j = 0;
+		numColoriAssegnati = 0;
+		indiceColore = 0;
+
+		paletteLocale[i][k].R = (coloriLocali[i][k].R) & 0xFF;
+		paletteLocale[i][k].G = (coloriLocali[i][k].G) & 0xFF;
+		paletteLocale[i][k].B = (coloriLocali[i][k].B) & 0xFF;
+
+		//vado a copiare all'interno il simbolo del colore che viene inserito nella palette
+		paletteLocale[i][k].simbolo = (char*) malloc (bitColore * sizeof(char));
+		strcpy(paletteLocale[i][k].simbolo,coloriLocali[i][k].simbolo);
+
+		//aggiungo uno ai colori assegnati all'interno della palette
+		numColoriAssegnati++;
+		//indico l'ultima posizione scritta
+		indiceColore = j;
+
+		for(k=1;k<numColori;k++){
+			if(coloriLocali[i][k].simbolo != NULL){
+				if(numColoriAssegnati < coloriPalette){
+					flag = 0;
+					verifica[0] = coloriLocali[i][k].R & 0xFF;
+					verifica[1] = coloriLocali[i][k].G & 0xFF;
+					verifica[2] = coloriLocali[i][k].B & 0xFF;
+					for(j=0;(j<coloriPalette && flag == 0);j++){
+						if(((verifica[0] >> bitPrecisione) == (paletteLocale[i][j].R >> bitPrecisione)) && (((verifica[1] >> bitPrecisione) == (paletteLocale[i][j].G >> bitPrecisione))) && (((verifica[2] >> bitPrecisione) == (paletteLocale[i][j].B >> bitPrecisione)))){
+							break;
+						}
+						if(j == indiceColore){
+							//devo scrivere nelle successive posizioni di j
+							paletteLocale[i][j+1].R = verifica[0]; //R
+							paletteLocale[i][j+1].G = verifica[1]; //G
+							paletteLocale[i][j+1].B = verifica[2]; //B
+							paletteLocale[i][numColoriAssegnati].simbolo = (char*) malloc (bitColore * sizeof(char));
+							strcpy(paletteLocale[i][numColoriAssegnati].simbolo,coloriLocali[i][k].simbolo);
+							indiceColore = j + 1;
+							flag = 1;
+							numColoriAssegnati++;
+						}
+					}
+				}
+				else{
+					break;
+				}
+			}
+		}
+
+		printf("numColoriAssegnati = %d\n",numColoriAssegnati);
+
+		if(numColoriAssegnati < coloriPalette){
+			for(k=1;k<numColori;k++){
+				if(numColoriAssegnati < coloriPalette){
+					flag = 1;
+					verifica[0] = coloriLocali[i][k].R & 0xFF;
+					verifica[1] = coloriLocali[i][k].G & 0xFF;
+					verifica[2] = coloriLocali[i][k].B & 0xFF;
+					for(j=0;(j<indiceColore && flag == 0);j++){
+						//controllo se il colore l'ho gia inserito all'interno della palette
+						//con questo indice dovrei arrivare all'ultimo valore inserito
+						if((verifica[0] == paletteLocale[i][j].R) && ((verifica[1] == paletteLocale[i][j].G)) && ((verifica[2] == paletteLocale[i][j].B))){
+							flag = 0;
+							break;
+						}
+						else{
+							flag = 1;
+						}
+					}
+					if(flag == 1){
+						//se non l'ho inserito lo inserisco alla prima posizione libera in teoria
+						paletteLocale[i][indiceColore+1].R = verifica[0];
+						paletteLocale[i][indiceColore+1].G = verifica[1];
+						paletteLocale[i][indiceColore+1].B = verifica[2];
+						paletteLocale[i][indiceColore+1].simbolo = (char*) malloc (bitColore * sizeof(char));
+						strcpy(paletteLocale[i][indiceColore+1].simbolo,coloriLocali[i][k].simbolo);
+						indiceColore++;
+						numColoriAssegnati++;
+					}
+				}
+				else{
+					break;
+				}
+			}
+		}
+		printf("numColoriAssegnati = %d\n",numColoriAssegnati);
+
+	}
+
+	/*for(i=0;i<numeroSottoMatriciImmagine;i++){
+		for(j=0;j<coloriPalette;j++){
+			printf("sim: %s\n",paletteLocale[i][j].simbolo);
+		}
+		getch();
+	}*/
+	printf("ordinamento palette locali completata\n");
+	getch();
+	CostruzioneMatriceImmagineLocaleGIF();
+
+	return 0;
+}
+
+
+//---------------------------------------------------------------------------------------
+
+int CostruzionePaletteLocale(){
+
+	int simboliTrovati = 0, numeroColonne, simboliInseriti,numeroSottoMatrici = -1;
+	int i, c, t, j, k, flag = 0, pos = 0;
+	char simboloConf[bitColore];
+
+	numeroSottoMatriciImmagine = mcd*mcd;
+	larghezzaMatrici = int(larghezza / mcd);
+	altezzaMatrici = int(altezza/mcd);
+
+	//creazione delle sottomatrici
+	//allocazione in memoria
+	sottoMatriciImmagini = (char**) malloc (numeroSottoMatriciImmagine * sizeof(char*));
+	for(i=0;i<numeroSottoMatriciImmagine;i++){
+		sottoMatriciImmagini[i]  = (char*) malloc ((altezzaMatrici * larghezzaMatrici * bitColore) * sizeof(char));
+	}
+
+	for(i = 0;i < mcd; i++){
+		for(j = 0;j < mcd; j++){
+
+			numeroSottoMatrici++;
+			c = 0;
+
+			for(k = 0;k < altezzaMatrici; k++){
+				for(t = (bitColore * ((j * larghezzaMatrici) + (k * larghezza) + (i * altezzaMatrici * larghezza)));t < (bitColore * (((j + 1) * larghezzaMatrici) + (k * larghezza) + (i * altezzaMatrici * larghezza))); t++){
+					sottoMatriciImmagini[numeroSottoMatrici][c] = matriceImmagine[t];
+					c++;
+				}
+			}
+		}
+	}
+
+	printf("sottomatrici create\n");
+	getch();
+
+	//creazione delle palette
+	//allocazione in memoria
+	coloriLocali = (colorVet**) malloc (numeroSottoMatriciImmagine * sizeof(colorVet*));
+	for(i=0;i<numeroSottoMatriciImmagine;i++){
+		coloriLocali[i]  = (colorVet*) malloc (numColori * sizeof(colorVet));
+	}
+
+	for(i=0;i<numeroSottoMatriciImmagine;i++){
+		c = 0;
+		simboliInseriti = 0;
+		for(j=0;j<strlen(sottoMatriciImmagini[i]);j++){
+
+			c++;
+			if(c == bitColore){
+				c = 0;
+				for(t=bitColore-1;t>=0;t--){
+					simboloConf[c] = sottoMatriciImmagini[i][j-t];
+					c++;
+				}
+				c = 0;
+				simboloConf[bitColore] = '\0';
+				//printf("simbolo: %s\n",simboloConf);
+
+				coloriLocali[i][simboliInseriti].simbolo = (char*) malloc (bitColore * sizeof(char));
+				flag = 0;
+				for(k=0;k<simboliInseriti && flag == 0;k++){
+					if((strcmp(simboloConf,coloriLocali[i][k].simbolo)) == 0){
+						//simbolo trovato
+						flag = 1;
+						pos = k;
+					}
+				}
+				//simbolo non trovato all'interno della palette
+				if(flag == 0){
+					strcpy(coloriLocali[i][simboliInseriti].simbolo,simboloConf);
+					simboliInseriti++;
+				}
+				//simbolo trovato all'interno della palette
+				else if(flag == 1){
+					flag = 0;
+					coloriLocali[i][pos].occorrenze++;
+				}
+			}
+		}
+		printf("palette creata\n");
+	}
+
+	printf("finito\n");
+
+	getch();
+
+	//andiamo a recuperare le informazioni sui colori
+	for(i=0;i<numeroSottoMatriciImmagine;i++){
+		for(c=0;c<numColori;c++){
+			flag = 0;
+			for(j=0;(j<numColori && flag == 0);j++){
+				if(coloriLocali[i][c].simbolo != NULL){
+					if(strcmp(coloriLocali[i][c].simbolo,colori[j].simbolo) == 0){
+						coloriLocali[i][c].R = colori[j].R;
+						coloriLocali[i][c].G = colori[j].G;
+						coloriLocali[i][c].B = colori[j].B;
+						flag = 1;
+					}
+				}
+				else{
+
+				}
+			}
+		}
+	}
+
+	printf("palette riempita di colori\n");
+	getch();
+
+	OrdinamentoPaletteLocale();
+
 	return 0;
 }
 
@@ -419,13 +779,13 @@ int CostruzioneMatriceImmagineGIF(){
 			for(j=0;j<coloriPalette;j++){
 
 				//è univoco questo conto ?
-				sommaDiff = abs((componenteRossa >> bitPrecisione) - (paletteGlobale[j].R >> bitPrecisione)) +
-							abs((componentVerde >> bitPrecisione) - (paletteGlobale[j].G >> bitPrecisione)) +
-							abs((componenteBlu >> bitPrecisione) - (paletteGlobale[j].B >> bitPrecisione));
+				//sommaDiff = abs((componenteRossa >> bitPrecisione) - (paletteGlobale[j].R >> bitPrecisione)) +
+				//			abs((componentVerde >> bitPrecisione) - (paletteGlobale[j].G >> bitPrecisione)) +
+				//			abs((componenteBlu >> bitPrecisione) - (paletteGlobale[j].B >> bitPrecisione));
 
-				//sommaDiff = abs((componenteRossa ) - (paletteGlobale[j].R )) +
-				//			abs((componentVerde ) - (paletteGlobale[j].G )) +
-				//			abs((componenteBlu ) - (paletteGlobale[j].B ));
+				sommaDiff = abs((componenteRossa ) - (paletteGlobale[j].R )) +
+							abs((componentVerde ) - (paletteGlobale[j].G )) +
+							abs((componenteBlu ) - (paletteGlobale[j].B ));
 
 				//piu la differenza è minore piu il colore si avvicina all'originale
 				if(sommaDiff < min){
@@ -460,49 +820,109 @@ int LetturaFilePPM(char nomeFile[]){
 
 //-----------------------------------------------------------------------------------------
 
+int MCD(int a, int b) {
+    while (a != b) {
+        if (a > b) {
+            a = a - b;
+        }
+        else {
+            b = b - a;
+        }
+    }
+    return a;
+}
+
+//-----------------------------------------------------------------------------------------
+
 int ScriviGIF(char nomeFile[]) {
 
 	//Dichiaro alcune variabili locali utili
-	int i;
+	int i,j;
 
 	//Cambio estensione al nome del file
-	//nomeFile[strlen(nomeFile) - 3] = 'g';
-	//nomeFile[strlen(nomeFile) - 2] = 'i';
-	//nomeFile[strlen(nomeFile) - 1] = 'f';
+	nomeFile[strlen(nomeFile) - 3] = 'g';
+	nomeFile[strlen(nomeFile) - 2] = 'i';
+	nomeFile[strlen(nomeFile) - 1] = 'f';
 
 	//Apro il file per scrivere i colori
-	FILE *fout = fopen(nomeFile, "w");
+	FILE *fout = fopen(nomeFile, "w+");
 	if(fout == NULL) {
 		fclose(fout);
 		return -1;
 	}
 
+
 	//Scrivo larghezza, altezza e numero colori
-	fprintf(fout, "%d %d %d\n", larghezza, altezza, coloriPalette);
+	fprintf(fout, "%d %d %d %d\n", larghezza, altezza, coloriPalette, numeroSottoMatriciImmagine);
 
-	//Scrivo tutta la palette
-	//mettiamo un segno distitivo nella palette
-	for(i = 0; i < coloriPalette; i++) {
-		fprintf(fout, "#%d %d %d\n", paletteGlobale[i].R, paletteGlobale[i].G, paletteGlobale[i].B);
+	if(numeroSottoMatriciImmagine == 1){
+
+		//Scrivo tutta la palette
+		//mettiamo un segno distitivo nella palette
+		for(i = 0; i < coloriPalette; i++) {
+			fprintf(fout, "#%d %d %d\n", paletteGlobale[i].R, paletteGlobale[i].G, paletteGlobale[i].B);
+		}
+
+		//Scrivo il contenuto dei pixel
+		for(i = 0; i < larghezza * altezza; i++){
+			fprintf(fout, "%u\n", matriceImmagineConvertita[i]);
+		}
+
+	}
+	else{
+		for(j=0;j<numeroSottoMatriciImmagine;j++){
+			for(i = 0; i < coloriPalette; i++) {
+				fprintf(fout, "#%d %d %d\n", paletteLocale[j][i].R, paletteLocale[j][i].G, paletteLocale[j][i].B);
+			}
+
+			//Scrivo il contenuto dei pixel
+			for(i = 0; i < larghezzaMatrici * altezzaMatrici; i++){
+				fprintf(fout, "%u\n", sottoMatriciImmagineConvertita[j][i]);
+			}
+
+			if(j < numeroSottoMatriciImmagine - 1){
+				fprintf(fout,",\n");
+			}
+		}
 	}
 
-	//Scrivo il contenuto dei pixel
-	for(i = 0; i < larghezza * altezza; i++){
-		fprintf(fout, "%u\n", matriceImmagineConvertita[i]);
-	}
+
 	//Chiudo il file e ritorno un valore di default
 	fclose(fout);
+	printf("scrittura completata\n");
+	getch();
 	return 0;
 }
 
+//-----------------------------------------------------------------------------------------------------
+/* Funzione che trova sceglie la palette locale da associare al pixel indicato dall'indice
+ */
+int selezionaPalette(int indice, int selettore) {
+
+	if(indice == 0){
+		return selettore;
+	}
+
+	//Alcuni controlli che identificano il settore giusto
+	if((indice % larghezza) % int(larghezza / 4) == 0 && indice % larghezza != larghezza - 4 + 1)
+		selettore ++;
+	if(indice % larghezza == 0)
+		selettore -= 4;
+	if(indice % int(altezza * larghezza / 4) == 0 && (indice < larghezza * altezza - larghezza))
+		selettore += 4;
+
+	//ritorno la posizione trovata
+	return selettore;
+}
 //-----------------------------------------------------------------------------------------
 
-int LetturaFileGIF(char nomeFile[]) {
+/*int LetturaFileGIF(char nomeFile[]) {
 
 	//Dichiaro alcune variabili utili per la lettura da file
 	FILE *fin;
 	char line[256],*str;
-	int cline = 0, cpixel = 0, ccolori = 0, i, c = 0;
+	int cline = 0, cpixel = 0, ccolori = 0, i, c = 0, flag = 0, cont = 0, mcd, j, lunghezzaFile = 0;
+	pixelInfo verifica;
 
 	//Apro il file per la lettura controllando che non ci siano problemi
 	fin = fopen(nomeFile,"r+");
@@ -516,61 +936,117 @@ int LetturaFileGIF(char nomeFile[]) {
 
 	str = (char*) malloc (256 * sizeof(char));
 
-	//leggo quanti colori contiene la palette
-	while(line[0] == '#' || coloriPalette <= 1){
-
+	//vado a contare la lunghezza del file
+	while (!(feof(fin))){
 		fscanf(fin, " %[^\n]", line);
-		coloriPalette++;
+		lunghezzaFile++;
+	}
+	fseek(fin, 0, (SEEK_SET));
 
+	//leggo la prima riga del file GIF
+	fscanf(fin, " %[^\n]", line);
+
+	larghezza = atoi(strtok(line," "));
+	altezza = atoi(strtok(NULL," "));
+	coloriPalette = atoi(strtok(NULL," "));
+	numeroSottoMatriciImmagine = atoi(strtok(NULL,"\0"));
+
+	if(numeroSottoMatriciImmagine > 1){
+		//mcd = MCD(altezza,larghezza);
+		mcd = 4;
+
+		altezzaMatrici = int(altezza/mcd);
+		larghezzaMatrici = int(larghezza/mcd);
+	}
+	else{
+		altezzaMatrici = altezza;
+		larghezzaMatrici = larghezza;
 	}
 
-	//torno all'inizio del file
-	fseek(fin, 0, SEEK_SET);
+	//inizializzo la matrice dell'immagine e la palette
+	//massimi colori diversi che possiamo avere
+	palette = (pixelInfo**) malloc((numeroSottoMatriciImmagine) * sizeof(pixelInfo*));
+	for(i=0;i<numeroSottoMatriciImmagine;i++){
+		palette[i] = (pixelInfo*) malloc((coloriPalette) * sizeof(pixelInfo));
+	}
+
+	sottoMatriciImmagineConvertita = (unsigned char**) malloc (numeroSottoMatriciImmagine * sizeof(unsigned char*));
+	for(i=0;i<numeroSottoMatriciImmagine;i++){
+		sottoMatriciImmagineConvertita[i] = (unsigned char*) malloc (altezzaMatrici * larghezzaMatrici * sizeof(unsigned char));
+	}
+
+
+
+	//lo dichiaro qua, perche è qua che imparo la grandezza
+	int t[numeroSottoMatriciImmagine];
+
+	//mi sposto alla seconda riga del file e azzero il contatore delle righe
+	fseek(fin, 16, (SEEK_SET));
+	cline = 0;
+	cont = 0;
+	cpixel = 0;
 
 	//leggo completamente il file
-	while (!(feof(fin))){
+	while (cline < lunghezzaFile-1){
 
 		//leggo una linea dal file
 		fscanf(fin," %[^\n]", line);
 		cline++;
-		//andiamo a leggere le informazioni dell'immagine
-		if(cline == 1){
 
-			larghezza = atoi(strtok(line," "));
-			altezza = atoi(strtok(NULL," "));
-			numColori = atoi(strtok(NULL,"\0"));
+		//fine di una sottomatrice
+		if(line[0] == ','){
+			cpixel = 0;
+			//contatore del numero di palette che incontriamo durante il file
+			cont++;
+			ccolori = 0;
+		}
+		else{
 
-			//inizializzo la matrice dell'immagine e la palette
-			palette = (pixelInfo*) malloc((numColori) * sizeof(pixelInfo));
-			matriceImmagineConvertita = (unsigned char*) malloc(larghezza * altezza * sizeof(unsigned char));
-		}
-		else if(line[0] == '#') {
-			//Leggo le informazioni di ogni pixel
-			str = strtok(line,"#");
-			palette[ccolori].R = atoi(strtok(str, " "));
-			palette[ccolori].G = atoi(strtok(NULL, " "));
-			palette[ccolori].B = atoi(strtok(NULL, "\0"));
-			ccolori++;
-		}
-		else if(line[0] != '#'){
-			//Leggo le informazioni delle palette
-			matriceImmagineConvertita[cpixel] = (unsigned char) atoi(line);
-			cpixel++;
-		}
-		else {
-			//controllo i casi che non entrano in nulla
-			printf("dentro3\n");
+			//se quello che sto leggendo è un dato della palette
+			if(line[0] == '#') {
+				//Leggo le informazioni di ogni pixel
+				str = strtok(line,"#");
+
+				//nel caso in cui è la prima palette che incontriamo
+				palette[cont][ccolori].R = atoi(strtok(str, " "));
+				palette[cont][ccolori].G = atoi(strtok(NULL, " "));
+				palette[cont][ccolori].B = atoi(strtok(NULL, "\0"));
+				ccolori++;
+			}
+			//se quello che sto leggendo è un dato da inserire all'interno della matrice
+			else if(line[0] != '#'){
+				sottoMatriciImmagineConvertita[cont][cpixel] = (unsigned char) atoi(line);
+				cpixel++;
+			}
 		}
 	}
 
 	//Alloco la struttura dati che contiene tutti i dati dei pixel
-	pixel = (pixelInfo*) malloc (larghezza * altezza * sizeof(pixelInfo));
+	pixelXPM = (pixelInfo*) malloc (larghezza * altezza * sizeof(pixelInfo));
 
 	//Associo ad ogni pixel il valore ricavato dalla palette
-	for(i = 0; i < altezza * larghezza; i++) {
-		pixel[i].R = palette[(int) matriceImmagineConvertita[i]].R;
-		pixel[i].G = palette[(int) matriceImmagineConvertita[i]].G;
-		pixel[i].B = palette[(int) matriceImmagineConvertita[i]].B;
+	j = 0;
+	c = 0;
+
+	for(i = 0;i < numeroSottoMatriciImmagine;i++) t[i] = 0;
+
+	for(i = 0;i < altezza * larghezza;i++){
+
+			//if(((i % larghezzaMatrici) == 0) && (i > 0)){
+			//	c++;
+			//	if(c == numeroSottoMatriciImmagine){
+			//		c = 0;
+			//	}
+			//}
+			c = selezionaPalette(i, c);
+
+			//printf("c: %d\n",c);
+
+			pixelXPM[i].R = palette[c][(int)sottoMatriciImmagineConvertita[c][t[c]]].R;
+			pixelXPM[i].G = palette[c][(int)sottoMatriciImmagineConvertita[c][t[c]]].G;
+			pixelXPM[i].B = palette[c][(int)sottoMatriciImmagineConvertita[c][t[c]]].B;
+			t[c]++;
+
 	}
 
 	//Chiudo il file e ritorno un valore di default
@@ -578,39 +1054,107 @@ int LetturaFileGIF(char nomeFile[]) {
 	printf("completata lettura file GIF\n");
 	getch();
 	return 0;
-}
+}*/
 
-//-----------------------------------------------------------------------------------------
-/*
-int ScriviPPM(char nomeFile[]) {
+int LetturaFileGIF(char nomeFile[]) {
 
-	//Dichiaro alcune variabili locali utili
-	int i;
+	//Dichiaro alcune variabili utili per la lettura da file
+	FILE *fin;
+	char line[256];
+	int cline = 0, ccolori = 0, i, c[16], selettore = 0;
 
-	//Cambio estensione al nome del file
-	nomeFile[strlen(nomeFile) - 3] = 'p';
-	nomeFile[strlen(nomeFile) - 2] = 'p';
-	nomeFile[strlen(nomeFile) - 1] = 'm';
-
-	//Apro il file per scrivere i colori
-	FILE *fout = fopen(nomeFile, "w");
-	if(fout == NULL) {
-		fclose(fout);
+	//Apro il file per la lettura controllando che non ci siano problemi
+	fin = fopen(nomeFile,"r+");
+	if(fin == NULL) {
+		fclose(fin);
 		return -1;
 	}
+	else{
+		printf("file aperto correttamente\n");
+	}
 
-	//Scrivo larghezza, altezza e numero colori
-	fprintf(fout, "P3\n#CREATOR CAMPI ARMARI\n%d %d\n255\n", larghezza, altezza);
+	//leggo completamente il file
+	while (!(feof(fin))){
 
-	//Scrivo il contenuto dei pixel
-	for(i = 0; i < larghezza * altezza; i++)
-		fprintf(fout, "%d\n%d\n%d\n", pixel[i].R, pixel[i].G, pixel[i].B);
+		//leggo una linea dal file
+		fscanf(fin, " %[^\n]", line);
+		cline++;
+
+		//Se è presente il separatore aggiorno gli indici
+		if(line[0] == ',') {
+			i++;
+			cline = 1;
+			ccolori = 0;
+
+			//Leggo le informazioni di ogni pixelPPM
+		} else if(cline > coloriPalette + 1) {
+			if(lzw == 0){
+				pixelGif[i][lunghezzaPixel[i]++] = (unsigned char) atoi(line);
+			}else{
+				//pixelLzw[i][lunghezzaPixel[i]++]  = (unsigned char) atoi(line);
+			}
+
+		//Leggo le informazioni delle palette
+		} else if(cline > 1 && cline <= coloriPalette + 1){
+			palette[i][ccolori].R = atoi(strtok(line, " "));
+			palette[i][ccolori].G = atoi(strtok(NULL, " "));
+			palette[i][ccolori].B = atoi(strtok(NULL, "\0"));
+			ccolori++;
+		//Ricavo le informazioni sull'immagine
+		} else {
+			larghezza = atoi(strtok(line, " "));
+			altezza = atoi(strtok(NULL, " "));
+			coloriPalette = atoi(strtok(NULL, " "));
+			numeroSottoMatriciImmagine = atoi(strtok(NULL, " "));
+			lzw = atoi(strtok(NULL, "\0"));
+
+			palette = (pixelInfo**) malloc((numeroSottoMatriciImmagine * numeroSottoMatriciImmagine) * sizeof(pixelInfo*));
+			palXPMchar = (paletteXPM*) malloc((numeroSottoMatriciImmagine * numeroSottoMatriciImmagine * coloriPalette) * sizeof(paletteXPM));
+			palXPMint = (pixelInfo*) malloc((numeroSottoMatriciImmagine * numeroSottoMatriciImmagine * coloriPalette) * sizeof(pixelInfo));
+			for(i = 0; i < numeroSottoMatriciImmagine * numeroSottoMatriciImmagine; i++) {
+				palette[i] = (pixelInfo*) malloc(coloriPalette * sizeof(pixelInfo));
+				pixelGif[i] = (unsigned char*) malloc(larghezza * altezza * sizeof(unsigned char));
+				//pixelLzw[i] = (unsigned char*) malloc(larghezza * altezza * sizeof(unsigned char));
+				lunghezzaPixel[i] = 0;
+			}
+			i = 0;
+		}
+	}
+
+	//Elimino l'ultima linea (poichè vuota) dai pixel utilizzabili
+	lunghezzaPixel[numeroSottoMatriciImmagine * numeroSottoMatriciImmagine - 1]--;
+
+	//Decomprimo i pixelPPM se sono stati compressi
+	//if (lzw == 1) {
+	//	for(i = 0; i < numeroSottoMatriciImmagine * numeroSottoMatriciImmagine; i++) {
+	//		lunghezzaPixel[i] = decompressoreLZW(lunghezzaPixel[i], i);
+	//	}
+	//}
+
+	//Alloco la struttura dati che contiene tutti i dati dei pixelPPM
+	pixelXPM = (pixelInfo*) malloc (larghezza * altezza * sizeof(pixelInfo));
+
+	//Inizializzo il contatore delle occorrenze
+	for(i = 0; i < numeroSottoMatriciImmagine * numeroSottoMatriciImmagine; i++)
+		c[i] = 0;
+
+	//Associo ad ogni pixelPPM il valore ricavato dalla palette
+	for(i = 0; i < larghezza * altezza; i++) {
+
+		//Trovo lo spazio da utilizzare nelle strutture
+		selettore = selezionaPalette(i, selettore);
+		//printf("i = %d, selettore = %d\n", i, selettore);
+		pixelXPM[i].R = palette[selettore][(int) pixelGif[selettore][c[selettore]]].R;
+		pixelXPM[i].G = palette[selettore][(int) pixelGif[selettore][c[selettore]]].G;
+		pixelXPM[i].B = palette[selettore][(int) pixelGif[selettore][c[selettore]]].B;
+		c[selettore]++;
+	}
 
 	//Chiudo il file e ritorno un valore di default
-	fclose(fout);
+	fclose(fin);
 	return 0;
 }
-*/
+
 //-----------------------------------------------------------------------------------------
 int DecToHex(int decimalNumber){
 
@@ -645,7 +1189,7 @@ int DecToHex(int decimalNumber){
 int ScriviXPM(char nomeFile[]){
 
 	char *simbolo;
-	int i,j,k,numSimbolo,pos;
+	int i,j,k,numSimbolo,pos,o,f = 0,cont = 0;
 
 	//Cambio estensione al nome del file
 	nomeFile[strlen(nomeFile) - 3] = 'x';
@@ -666,20 +1210,59 @@ int ScriviXPM(char nomeFile[]){
 	}
 	fprintf(fout,"[] = {\n");
 
+	numeroSottoMatriciImmagine = numeroSottoMatriciImmagine * numeroSottoMatriciImmagine;
+
 	//calcolo di quanti caratteri vengono utilizzati per rappresentare i colori
 	//91 è il numero di simboli che abbiamo disponibili nell'alfabeto
-	if(((log((double)numColori))/(log((double)91))) <= 2){
+	if(((log((double)coloriPalette * numeroSottoMatriciImmagine))/(log((double)91))) <= 2){
 		bitColore = 2;
 	}
-	else if(((log((double)numColori))/(log((double)91))) < abs(((log((double)numColori))/(log((double)91))))+1){
-		bitColore = abs(((log((double)numColori))/(log((double)91))))+1;
+	else if(((log((double)coloriPalette * numeroSottoMatriciImmagine))/(log((double)91))) < abs(((log((double)coloriPalette * numeroSottoMatriciImmagine))/(log((double)91))))+1){
+		bitColore = abs(((log((double)coloriPalette * numeroSottoMatriciImmagine))/(log((double)91))))+1;
+	}
+
+	for(j=0;j<numeroSottoMatriciImmagine;j++){
+		for(i=0;i<coloriPalette;i++){
+
+			f = 0;
+			DecToHex(palette[j][i].R);
+			confronto.R[0] = hexadecimalNumber[0];
+			confronto.R[1] = hexadecimalNumber[1];
+			confronto.R[2] = '\0';
+
+			DecToHex(palette[j][i].G);
+			confronto.G[0] = hexadecimalNumber[0];
+			confronto.G[1] = hexadecimalNumber[1];
+			confronto.G[2] = '\0';
+
+			DecToHex(palette[j][i].B);
+			confronto.B[0] = hexadecimalNumber[0];
+			confronto.B[1] = hexadecimalNumber[1];
+			confronto.B[2] = '\0';
+
+			for(k = 0;((k < numeroSottoMatriciImmagine * coloriPalette) && f == 0); k++){
+				if((strcmp(confronto.R,palXPMchar[k].R) == 0) && (strcmp(confronto.G,palXPMchar[k].G) == 0) && (strcmp(confronto.B,palXPMchar[k].B) == 0)){
+					f = 1;
+				}
+			}
+
+			if(f == 0){
+				strcpy(palXPMchar[cont].R,confronto.R);
+				strcpy(palXPMchar[cont].G,confronto.G);
+				strcpy(palXPMchar[cont].B,confronto.B);
+				palXPMint[cont].R = palette[j][i].R;
+				palXPMint[cont].G = palette[j][i].G;
+				palXPMint[cont].B = palette[j][i].B;
+				cont++;
+			}
+		}
 	}
 
 	//stampo le caratteristiche dell'immagine
-	fprintf(fout, "\"%d %d %d %d \",\n",larghezza,altezza,numColori,bitColore);
+	fprintf(fout, "\"%d %d %d %d \",\n",larghezza,altezza,cont,bitColore);
 
 	//alloco lo spazio per andare a salvare i simboli
-	simboli = (generazioneSimboli*) malloc (numColori * sizeof(generazioneSimboli));
+	simboli = (generazioneSimboli*) malloc (cont * sizeof(generazioneSimboli));
 
 	//stampo la palette
 	//il simbolo iniziale da cui partiamo è il 032 lo spazio
@@ -687,12 +1270,14 @@ int ScriviXPM(char nomeFile[]){
 	k = bitColore - 1;
 
 	//alloco lo spazio generale per ogni simbolo
-	for(i=0;i<numColori;i++){
-		simboli[i].simbolo = (char*) malloc ((bitColore+1) * sizeof(char));
+	for(i=0;i<cont;i++){
+		simboli[i].simbolo = (char*) malloc ((bitColore + 1) * sizeof(char));
 	}
+
+	//calcolo dei simboli da mettere all'interno della palette
 	for(i=bitColore;i>0;i--){
 		numSimbolo = 32;
-		for(j=0;j<numColori;j++){
+		for(j=0;j<cont;j++){
 
 			simboli[j].simbolo[i-1] = (char)numSimbolo;
 			if(numSimbolo == 123){
@@ -707,17 +1292,20 @@ int ScriviXPM(char nomeFile[]){
 		}
 		k--;
 	}
-	for(i=0;i<numColori;i++){
-		simboli[i].simbolo[bitColore] = '\0';
-		//printf("%s\n",simboli[i].simbolo);
-		fprintf(fout, "\"%s c #",simboli[i].simbolo);
-		DecToHex(palette[i].R);
-		fprintf(fout,"%c%c",hexadecimalNumber[0],hexadecimalNumber[1]);
-		DecToHex(palette[i].G);
-		fprintf(fout,"%c%c",hexadecimalNumber[0],hexadecimalNumber[1]);
-		DecToHex(palette[i].B);
-		fprintf(fout,"%c%c\",\n",hexadecimalNumber[0],hexadecimalNumber[1]);
+
+	for(j=0;j<cont;j++){
+		simboli[j].simbolo[bitColore] = '\0';
 	}
+
+	//scrivo la palette sul file
+	for(j = 0;j < cont; j++){
+		fprintf(fout, "\"%s c #",simboli[j].simbolo);
+		fprintf(fout,"%c%c",palXPMchar[j].R[0],palXPMchar[j].R[1]);
+		fprintf(fout,"%c%c",palXPMchar[j].G[0],palXPMchar[j].G[1]);
+		fprintf(fout,"%c%c\",\n",palXPMchar[j].B[0],palXPMchar[j].B[1]);
+
+	}
+
 
 	//stampo la matrice che contiene i colori
 	j = 0;
@@ -729,8 +1317,8 @@ int ScriviXPM(char nomeFile[]){
 			fprintf(fout,"\"");
 		}
 		//cerco il colore all'interno della palette
-		for(j=0;(j<numColori && k == 0);j++){
-			if((pixel[i].R == palette[j].R) && (pixel[i].G == palette[j].G) && (pixel[i].B == palette[j].B)){
+		for(j=0;(j<cont && k == 0);j++){
+			if((pixelXPM[i].R == palXPMint[j].R) && (pixelXPM[i].G == palXPMint[j].G) && (pixelXPM[i].B == palXPMint[j].B)){
 				k = 1;
 				pos = j;
 			}
@@ -745,6 +1333,7 @@ int ScriviXPM(char nomeFile[]){
 			printf("non trovato\n");
 		}
 
+		//scrivere il fine riga
 		if((i+1) != 1){
 			if(((i+1) % larghezza) == 0){
 				if((i+1) == (altezza*larghezza)){
@@ -773,9 +1362,9 @@ int main(){
 	char *nomeFile,ext[3];
 
 	//di sicuro ci sono modi piu efficaci
-	res = strlen("256.gif");
+	res = strlen("3.gif");
 	nomeFile = (char*) malloc (res*sizeof(char));
-	strcpy(nomeFile,"256.gif");
+	strcpy(nomeFile,"3.gif");
 
 	//ciclo che prende l'estensione del file
 	for(i=res-1;i>=res-3;i--){
@@ -786,13 +1375,12 @@ int main(){
 	if(strcmp(ext,"xpm")==0){
 		res |= LetturaFileXPM(nomeFile);
 
-		/*while((tipoPalette != 1) && (tipoPalette != 2)){
+		while((tipoPalette != 1) && (tipoPalette != 2)){
 			printf("Per la coversione vuoi fare usare una palette globale o una palette locale ?\n");
 			printf("1)palette globale\n");
 			printf("2)palette locale\n");
 			scanf("%d",&tipoPalette);
-		}*/
-		tipoPalette = 1;
+		}
 
 		if(tipoPalette == 1){
 			//costruzione palette globale
@@ -830,6 +1418,8 @@ int main(){
 				break;
 			}*/
 
+			numeroSottoMatriciImmagine = 1;
+
 			for(i=255;i<256;i++){
 				coloriPalette = i+1;
 				res |= CostruzionePaletteGlobale();
@@ -837,12 +1427,51 @@ int main(){
 
 				char str[10];
 				itoa(coloriPalette,str,10);
-				printf("%s\n",str);
 				res |= ScriviGIF(str);
 			}
 		}
 		else if(tipoPalette == 2){
-			//costruzione palette locale
+
+			//mcd = MCD(larghezza,altezza);
+			mcd = 4;
+			printf("mcd: %d\n",mcd);
+			printf("la matrici sara divisa in %d sottomatrici\n",mcd*mcd);
+
+			//numero di colori delle varie palette delle matrici
+			while((c != 1) && ((c != 2)) && ((c != 3)) && ((c != 4)) && ((c != 5))){
+				printf("da quanti colori vuoi che siano composte le palette da cui la matrice sara formata ?\n");
+				printf("1)16\n");
+				printf("2)32\n");
+				printf("3)64\n");
+				printf("4)128\n");
+				printf("5)256\n");
+				scanf("%d",&c);
+			}
+
+			switch(c){
+			case 1:
+				coloriPalette = 16;
+				res |= CostruzionePaletteLocale();
+				break;
+			case 2:
+				coloriPalette = 32;
+				res |= CostruzionePaletteLocale();
+				break;
+			case 3:
+				coloriPalette = 64;
+				res |= CostruzionePaletteLocale();
+				break;
+			case 4:
+				coloriPalette = 128;
+				res |= CostruzionePaletteLocale();
+				break;
+			case 5:
+				coloriPalette = 256;
+				res |= CostruzionePaletteLocale();
+				break;
+			}
+
+			res |= ScriviGIF(nomeFile);
 		}
 		else{
 			//controllo i casi che non entrano in nessuna delle possibilita
