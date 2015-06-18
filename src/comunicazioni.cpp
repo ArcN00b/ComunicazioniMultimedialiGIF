@@ -128,7 +128,7 @@ int cercaDizionario(int attuale[], int *dizionario[], int fineDizionario) {
  */
 int compressoreLZW(int indice) {
 
-	int i, j, c, pos, prec, indiceLzw = 0;
+	int i, j, c, pos = 0, prec, indiceLzw = 0;
 	int temp[65536], *dizionario[65536];
 	int fineDizionario = coloriPalette;
 
@@ -342,7 +342,7 @@ int LetturaFileXPM(char nomeFile[]){
 			//andiamo a leggere tutti i parametri dell'immagine
 
 			str = strtok(line," ");
-			for(i = 0;i < (strlen(str)-1); i++){
+			for(i = 0;i < int(strlen(str)-1); i++){
 				str[i] = str[i + 1];
 			}
 
@@ -361,7 +361,7 @@ int LetturaFileXPM(char nomeFile[]){
 					listaColoriXPM = (colorVet*) malloc (numColori * sizeof(colorVet));
 					break;
 				case 2:
-					for(i = 0;i < strlen(str); i++){
+					for(i = 0;i < int(strlen(str)); i++){
 						if(str[i] == '"'){
 							str[i] = '\0';
 							//condizione di chiusura for
@@ -391,7 +391,7 @@ int LetturaFileXPM(char nomeFile[]){
 			listaColoriXPM[cline - 4].occorrenza = 0;
 
 			str = (char*) malloc (6*sizeof(char));
-			for(i = 0;i < strlen(line); i++){
+			for(i = 0;i < int(strlen(line)); i++){
 				if((i > (bitColore + 4)) && (i < (bitColore + 4 + 7))){
 					str[t] = line[i];
 					t++;
@@ -417,7 +417,7 @@ int LetturaFileXPM(char nomeFile[]){
 
 			//il vettore che contiene tutta l'immagine è scritto riga per riga
 			c = 0;
-			for(i = 1;i < (strlen(line) - 2); i++){
+			for(i = 1;i < int(strlen(line) - 2); i++){
 
 				//c è l'indice che mi dice quando sono stati salvati due simboli, quindi
 				//quando posso prendere i due simboli per controllare l'occorrenza
@@ -529,7 +529,7 @@ int LetturaFileGIF(char nomeFile[]) {
 	//Dichiaro alcune variabili utili per la lettura da file
 	FILE *fin;
 	char line[256];
-	int cline = 0, ccolori = 0, i, c[16], selettore = 0;
+	int cline = 0, ccolori = 0, i = 0, c[16], selettore = 0;
 	coloriPalette = 256; // temporaneo
 
 	//Apro il file per la lettura controllando che non ci siano problemi
@@ -563,7 +563,8 @@ int LetturaFileGIF(char nomeFile[]) {
 		} else if(cline > 1 && cline <= coloriPalette + 1){
 			palette[i][ccolori].R = atoi(strtok(line, " "));
 			palette[i][ccolori].G = atoi(strtok(NULL, " "));
-			palette[i][ccolori++].B = atoi(strtok(NULL, "\0"));
+			palette[i][ccolori].B = atoi(strtok(NULL, "\0"));
+			ccolori++;
 
 		//Ricavo le informazioni sull'immagine
 		} else {
@@ -622,14 +623,14 @@ int LetturaFileGIF(char nomeFile[]) {
 int CostruzioneMatriceImmagineGIF(){
 
 	int i,c=0,j,flag=0,min,sommaDiff,t=0;
-	int componenteRossa,componentVerde,componenteBlu;
+	int componenteRossa = 0,componentVerde = 0,componenteBlu = 0;
 	char *simbolo;
-	unsigned char pos;
+	unsigned char pos = '\0';
 
 	simbolo = (char*) malloc ((bitColore + 1) * sizeof(char));
 
 	//leggo tutti i caratteri all'interno della matrice dell'immagine XPM
-	for(i=1;i<=strlen(pixelXpm);i++){
+	for(i = 1;i <= int(strlen(pixelXpm)); i++){
 		//ciclo che prende ogni simbolo dell'immagine e verifica se si trova all'interno della palette
 
 		simbolo[c] = pixelXpm[i-1];
@@ -701,9 +702,9 @@ int CostruzioneMatriceImmagineGIF(){
 int CostruzioneMatriceImmagineLocaleGIF(){
 
 	int i,c=0,j,flag=0,min,sommaDiff,t=0,k;
-	int componenteRossa,componentVerde,componenteBlu;
+	int componenteRossa = 0,componentVerde = 0,componenteBlu = 0;
 	char *simbolo;
-	unsigned char pos;
+	unsigned char pos = '\0';
 
 	sottoMatriciImmagineConvertita = (unsigned char**) malloc (numeroSottoMatriciImmagine * sizeof(unsigned char*));
 	for(i=0;i<numeroSottoMatriciImmagine;i++){
@@ -785,7 +786,7 @@ int CostruzioneMatriceImmagineLocaleGIF(){
 //---------------------------------------------------------------------------------------
 int OrdinamentoPaletteLocale(){
 
-	int i,k,j,t,c = 0,indiceColore = 0,flag = 0,numColoriAssegnati = 0,bitPrecisione;
+	int i,k,j,indiceColore = 0,flag = 0,numColoriAssegnati = 0,bitPrecisione;
 	colorVet scambio;
 	unsigned char verifica[3];
 
@@ -912,7 +913,7 @@ int OrdinamentoPaletteLocale(){
 
 int CostruzionePaletteLocale(){
 
-	int simboliTrovati = 0, numeroColonne, simboliInseriti,numeroSottoMatrici = -1;
+	int simboliInseriti,numeroSottoMatrici = -1;
 	int i, c, t, j, k, flag = 0, pos = 0;
 	char simboloConf[bitColore];
 
@@ -952,7 +953,7 @@ int CostruzionePaletteLocale(){
 	for(i=0;i<numeroSottoMatriciImmagine;i++){
 		c = 0;
 		simboliInseriti = 0;
-		for(j=0;j<strlen(sottoMatriciImmagini[i]);j++){
+		for(j = 0;j < int(strlen(sottoMatriciImmagini[i])); j++){
 
 			c++;
 			if(c == bitColore){
@@ -1018,7 +1019,7 @@ int CostruzionePaletteLocale(){
  */
 int CostruzionePaletteGlobale(){
 
-	int i,k,j,t,c = 0,indiceColore = 0,flag = 0,numColoriAssegnati = 0;
+	int i, k, j, indiceColore = 0, flag = 0, numColoriAssegnati = 0;
 	colorVet scambio;
 	unsigned char verifica[3];
 
@@ -1463,7 +1464,7 @@ int ScriviGIFdaXPM(char nomeFile[], unsigned char *daScrivere[]) {
 int DecToHex(int decimalNumber){
 
 	int quotient;
-	int i=1,j,temp;
+	int i=1,temp;
 
 	quotient = decimalNumber;
 
@@ -1491,8 +1492,7 @@ int DecToHex(int decimalNumber){
 //-----------------------------------------------------------------------------------------
 int ScriviXPM(char nomeFile[]){
 
-	char *simbolo;
-	int i,j,k,numSimbolo,pos,o,f = 0,cont = 0;
+	int i,j,k,numSimbolo,pos,f = 0,cont = 0;
 	paletteXPM confronto;
 
 	//Cambio estensione al nome del file
@@ -1510,10 +1510,10 @@ int ScriviXPM(char nomeFile[]){
 		return -1;
 	}
 
-	printf("aperto");
 	fprintf(fout, "/* XPM */\n");
 	fprintf(fout, "static char *");
-	for(i=0;i<=strlen(nomeFile)-5;i++){
+
+	for(i = 0;i <= int(strlen(nomeFile)-5); i++){
 		fprintf(fout,"%c",nomeFile[i]);
 	}
 	fprintf(fout,"[] = {\n");
@@ -1682,7 +1682,7 @@ int main(){
 
 	//Alcune variabili locali utili alla gestione dell'applicativo
 	int i, j = 2, input;
-	char nomeFile[1024], estensione[3];
+	char nomeFile[1024], estensione[4];
 
 	//Chiedo all'utente il file da utilizzare
 	printf("Inserire il nome del file da aprire\n");
@@ -1884,8 +1884,6 @@ int main(){
 
 		}
 
-		scanf("%d",&input);
-
 	/* ****************************************************************** *
 	 * Elaborazione di un .ppm                                            *
 	 * ****************************************************************** */
@@ -2030,8 +2028,6 @@ int main(){
 			ScriviPPM(nomeFile);
 			break;
 		}
-
-		scanf("%d",&input);
 
 	//In caso di errori
 	} else{
