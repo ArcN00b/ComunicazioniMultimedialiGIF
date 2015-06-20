@@ -71,11 +71,11 @@ int selezionaPalette(int indice, int selettore) {
 		return selettore;
 
 	//Alcuni controlli che identificano il settore giusto
-	if((indice % larghezza) % int(larghezza / numPalette) == 0 && indice % larghezza != larghezza - numPalette + 1)
+	if((indice % larghezza) % int((larghezza / numPalette) + 1) == 0 && indice % larghezza != larghezza)
 		selettore ++;
 	if(indice % larghezza == 0)
 		selettore -= numPalette;
-	if(indice % int(altezza * larghezza / numPalette) == 0 && (indice < larghezza * altezza - larghezza))
+	if(indice % int(altezza * larghezza / numPalette) == 0 && (indice < larghezza * altezza - 4 * larghezza))
 		selettore += numPalette;
 
 	//ritorno la posizione trovata
